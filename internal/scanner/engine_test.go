@@ -16,7 +16,7 @@ type mockRule struct{}
 func (m mockRule) ID() string          { return "MOCK" }
 func (m mockRule) Description() string { return "mock" }
 func (m mockRule) Apply(ctx context.Context, _ *token.FileSet, _ *packages.Package) ([]Issue, error) {
-	return []Issue{{RuleID: "MOCK", Title: "mock issue", Severity: SeverityInfo}}, nil
+	return []Issue{{RuleID: "MOCK", Title: "mock issue", Severity: SeverityWarning}}, nil
 }
 
 func TestEnginePipeline(t *testing.T) {

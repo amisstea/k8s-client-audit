@@ -27,6 +27,7 @@ func Run(ctx context.Context, args []string) error {
 	dest := fs.String("dest", "sources", "Destination directory for repositories")
 	skipClone := fs.Bool("skip-clone", false, "Skip cloning/updating sources; assume they exist")
 	debug := fs.Bool("debug", false, "Enable debug logging across the app")
+	disableRules := fs.String("disable-rules", "K8S003", "Comma-separated rule IDs to disable (default disables K8S003)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -107,6 +108,17 @@ func Run(ctx context.Context, args []string) error {
 	// Run scanner per-repository directory under DestDir
 	slog.Info("🔎 Scanning repositories for Kubernetes API usage anti-patterns", "root", opts.DestDir)
 	sc := scanner.New()
+	if *disableRules != "" {
+		// parse comma-separated
+		var list []string
+		for _, id := range splitAndTrim(*disableRules) {
+			if id != "" {
+				list = append(list, id)
+			}
+		}
+		sc.SetDisabledRules(list)
+		slog.Info("rules disabled", "ids", list)
+	}
 	entries, err := os.ReadDir(opts.DestDir)
 	if err != nil {
 		slog.Error("failed to read destination directory", "error", err, "dir", opts.DestDir)
@@ -139,7 +151,7 @@ func Run(ctx context.Context, args []string) error {
 		totalIssues += len(issues)
 		slog.Warn("⚠️  Issues found", "repo", ent.Name(), "count", len(issues))
 		for _, is := range issues {
-			slog.Log(ctx, slog.LevelInfo, "issue",
+			slog.Log(ctx, slog.LevelWarn, "⚠️  issue",
 				"repo", ent.Name(),
 				"severity", is.Severity,
 				"rule", is.RuleID,

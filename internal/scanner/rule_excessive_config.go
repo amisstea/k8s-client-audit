@@ -34,7 +34,7 @@ func (r *ruleExcessiveConfig) Apply(ctx context.Context, fset *token.FileSet, pk
 						RuleID:      r.ID(),
 						Title:       "Potential repeated client/config creation",
 						Description: "Constructing rest.Config or clients frequently can be expensive; prefer app-level singletons and DI",
-						Severity:    SeverityInfo,
+						Severity:    SeverityWarning,
 						PackagePath: pkg.PkgPath,
 						Position:    Position{Filename: pos.Filename, Line: pos.Line, Column: pos.Column},
 						Suggestion:  "Create rest.Config and clients once and pass them into components",

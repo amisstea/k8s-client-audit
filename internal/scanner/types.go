@@ -4,7 +4,6 @@ package scanner
 type Severity string
 
 const (
-	SeverityInfo    Severity = "INFO"
 	SeverityWarning Severity = "WARNING"
 	SeverityError   Severity = "ERROR"
 )

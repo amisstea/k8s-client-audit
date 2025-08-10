@@ -4,6 +4,7 @@ import (
 	"context"
 	"go/ast"
 	"go/token"
+	"log/slog"
 
 	"golang.org/x/tools/go/packages"
 )
@@ -32,6 +33,7 @@ func LoadPackages(dir string) (*token.FileSet, []*packages.Package, error) {
 	}
 	fset := token.NewFileSet()
 	cfg.Fset = fset
+	// Recursively load all packages within this module/repo
 	pkgs, err := packages.Load(cfg, "./...")
 	if err != nil {
 		return nil, nil, err
@@ -50,11 +52,13 @@ func (e *Engine) Run(ctx context.Context, dir string) ([]Issue, error) {
 		if len(p.Syntax) == 0 {
 			continue
 		}
+		slog.Info("🧩 Scanning package", "pkg", p.PkgPath, "files", len(p.Syntax))
 		// Ensure AST is available
 		for range p.Syntax {
 			_ = &ast.File{}
 		}
 		for _, r := range e.rules {
+			slog.Debug("▶️  Applying rule", "id", r.ID(), "desc", r.Description(), "pkg", p.PkgPath)
 			issues, err := r.Apply(ctx, fset, p)
 			if err != nil {
 				// continue collecting from other rules/packages

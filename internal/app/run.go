@@ -5,13 +5,14 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"time"
 
 	"cursor-experiment/internal/githubclient"
 	"cursor-experiment/internal/gitutil"
+	"cursor-experiment/internal/scanner"
 )
 
 type Options struct {
@@ -25,6 +26,7 @@ func Run(ctx context.Context, args []string) error {
 	org := fs.String("org", "konflux-ci", "GitHub organization to clone")
 	dest := fs.String("dest", "sources", "Destination directory for repositories")
 	skipClone := fs.Bool("skip-clone", false, "Skip cloning/updating sources; assume they exist")
+	debug := fs.Bool("debug", false, "Enable debug logging across the app")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -41,6 +43,14 @@ func Run(ctx context.Context, args []string) error {
 		return fmt.Errorf("create dest dir: %w", err)
 	}
 
+	// Configure application-wide logger via slog
+	level := slog.LevelInfo
+	if *debug {
+		level = slog.LevelDebug
+	}
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: level}))
+	slog.SetDefault(logger)
+
 	ghToken := os.Getenv("GITHUB_TOKEN")
 	gh := githubclient.New(ghToken)
 
@@ -49,51 +59,98 @@ func Run(ctx context.Context, args []string) error {
 		return fmt.Errorf("list org repos: %w", err)
 	}
 
-	log.Printf("🔍 Found %d repositories under %s", len(repos), opts.Org)
+	slog.Info("🔍 Found repositories", "count", len(repos), "org", opts.Org)
 
 	if opts.SkipClone {
-		log.Printf("⏭️  Skipping clone/update. Assuming sources already exist in %q", opts.DestDir)
-		return nil
-	}
-
-	var cloned, updated, failedClone, failedUpdate, skipped int
-	for _, r := range repos {
-		repoDir := filepath.Join(opts.DestDir, r.Name)
-		url := r.SSHURL
-		if url == "" {
-			url = r.CloneURL
-		}
-		if url == "" {
-			log.Printf("⚠️  %s: no clone URL available; skipping", r.Name)
-			skipped++
-			continue
-		}
-
-		if _, err := os.Stat(repoDir); err == nil {
-			log.Printf("🔄 Updating %s → branch %q", r.Name, r.DefaultBranch)
-			started := time.Now()
-			if err := gitutil.FetchAndCheckoutLatest(repoDir, r.DefaultBranch, 1, 30*time.Second); err != nil {
-				log.Printf("❌ Update failed for %s: %v", r.Name, err)
-				failedUpdate++
-			} else {
-				log.Printf("✅ Updated %s in %s", r.Name, time.Since(started).Truncate(time.Millisecond))
-				updated++
+		slog.Info("⏭️  Skipping clone/update; assuming sources exist", "dest", opts.DestDir)
+	} else {
+		var cloned, updated, failedClone, failedUpdate, skipped int
+		for _, r := range repos {
+			repoDir := filepath.Join(opts.DestDir, r.Name)
+			url := r.SSHURL
+			if url == "" {
+				url = r.CloneURL
 			}
-			continue
+			if url == "" {
+				slog.Warn("⚠️  No clone URL available; skipping", "repo", r.Name)
+				skipped++
+				continue
+			}
+
+			if _, err := os.Stat(repoDir); err == nil {
+				slog.Info("🔄 Updating repo", "repo", r.Name, "branch", r.DefaultBranch)
+				started := time.Now()
+				if err := gitutil.FetchAndCheckoutLatest(repoDir, r.DefaultBranch, 1, 30*time.Second); err != nil {
+					slog.Error("❌ Update failed", "repo", r.Name, "error", err)
+					failedUpdate++
+				} else {
+					slog.Info("✅ Updated repo", "repo", r.Name, "elapsed", time.Since(started).Truncate(time.Millisecond).String())
+					updated++
+				}
+				continue
+			}
+
+			slog.Info("⬇️  Cloning repo", "repo", r.Name, "url", url, "branch", r.DefaultBranch)
+			started := time.Now()
+			if err := gitutil.ShallowClone(url, repoDir, r.DefaultBranch, 1, 60*time.Second); err != nil {
+				slog.Error("❌ Clone failed", "repo", r.Name, "error", err)
+				failedClone++
+			} else {
+				slog.Info("✅ Cloned repo", "repo", r.Name, "elapsed", time.Since(started).Truncate(time.Millisecond).String())
+				cloned++
+			}
 		}
 
-		log.Printf("⬇️  Cloning %s from %s (branch %q)", r.Name, url, r.DefaultBranch)
-		started := time.Now()
-		if err := gitutil.ShallowClone(url, repoDir, r.DefaultBranch, 1, 60*time.Second); err != nil {
-			log.Printf("❌ Clone failed for %s: %v", r.Name, err)
-			failedClone++
-		} else {
-			log.Printf("✅ Cloned %s in %s", r.Name, time.Since(started).Truncate(time.Millisecond))
-			cloned++
-		}
+		slog.Info("📦 Summary", "cloned", cloned, "updated", updated, "clone_failures", failedClone, "update_failures", failedUpdate, "skipped", skipped)
 	}
 
-	log.Printf("📦 Summary: ✅ cloned=%d, ✅ updated=%d, ❌ clone_failures=%d, ❌ update_failures=%d, ⚠️ skipped=%d", cloned, updated, failedClone, failedUpdate, skipped)
+	// Run scanner per-repository directory under DestDir
+	slog.Info("🔎 Scanning repositories for Kubernetes API usage anti-patterns", "root", opts.DestDir)
+	sc := scanner.New()
+	entries, err := os.ReadDir(opts.DestDir)
+	if err != nil {
+		slog.Error("failed to read destination directory", "error", err, "dir", opts.DestDir)
+		return err
+	}
+	totalIssues := 0
+	scanned := 0
+	for _, ent := range entries {
+		if !ent.IsDir() {
+			continue
+		}
+		repoDir := filepath.Join(opts.DestDir, ent.Name())
+		// Prefer scanning only go modules
+		if _, err := os.Stat(filepath.Join(repoDir, "go.mod")); err != nil {
+			// Not a Go module
+			slog.Warn("⚠️  Not a go module; skipping", "repo", ent.Name())
+			continue
+		}
+		slog.Info("📂 Scanning repo", "repo", ent.Name())
+		issues, err := sc.ScanDirectory(ctx, repoDir)
+		scanned++
+		if err != nil {
+			slog.Error("scan failed for repo", "repo", ent.Name(), "error", err)
+			continue
+		}
+		if len(issues) == 0 {
+			slog.Info("✅ No issues", "repo", ent.Name())
+			continue
+		}
+		totalIssues += len(issues)
+		slog.Warn("⚠️  Issues found", "repo", ent.Name(), "count", len(issues))
+		for _, is := range issues {
+			slog.Log(ctx, slog.LevelInfo, "issue",
+				"repo", ent.Name(),
+				"severity", is.Severity,
+				"rule", is.RuleID,
+				"title", is.Title,
+				"file", is.Position.Filename,
+				"line", is.Position.Line,
+				"suggestion", is.Suggestion,
+			)
+		}
+	}
+	slog.Info("🧾 Scan summary", "repos_scanned", scanned, "total_issues", totalIssues)
 
 	return nil
 }

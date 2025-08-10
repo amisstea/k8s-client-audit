@@ -19,12 +19,15 @@ func (r *Registry) Rules() []Rule { return append([]Rule{}, r.rules...) }
 // BuildDefaultRegistry returns a registry with all planned rules registered (stubs for now).
 func BuildDefaultRegistry() *Registry {
 	reg := NewRegistry()
-	// Add stubs so the pipeline is wired; implementation will come later.
+	// Concrete early rules
+	reg.Add(NewRuleExcessiveConfig())
+	reg.Add(NewRuleListInLoop())
+	reg.Add(NewRuleMissingContext())
+
+	// Remaining rules as stubs to wire taxonomy
 	reg.Add(newStubRule(RuleClientReuseID, "Clients should be reused; avoid creating per-request clients"))
 	reg.Add(newStubRule(RuleQPSBurstConfigID, "Ensure rest.Config QPS/Burst are tuned and not unlimited"))
-	reg.Add(newStubRule(RuleExcessiveRestConfigCreationID, "Avoid repeated rest.Config creation"))
 	reg.Add(newStubRule(RuleMissingSharedInformerID, "Prefer SharedInformerFactory over manual polling"))
-	reg.Add(newStubRule(RuleDirectListWatchInLoopsID, "Avoid List/Watch inside tight loops"))
 	reg.Add(newStubRule(RuleManualPollingInsteadOfWatchID, "Avoid manual polling where watch/informers suffice"))
 	reg.Add(newStubRule(RuleUnboundedWorkQueueID, "Use rate-limited and bounded work queues in controllers"))
 	reg.Add(newStubRule(RuleNoBackoffOnRequeueID, "Requeues should use rate limiting/backoff"))

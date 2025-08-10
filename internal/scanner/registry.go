@@ -23,6 +23,9 @@ func BuildDefaultRegistry() *Registry {
 	reg.Add(NewRuleExcessiveConfig())
 	reg.Add(NewRuleListInLoop())
 	reg.Add(NewRuleMissingContext())
+	reg.Add(NewRuleNoSelectors())
+	reg.Add(NewRuleWideNamespace())
+	reg.Add(NewRuleTightErrorLoops())
 
 	// Remaining rules as stubs to wire taxonomy
 	reg.Add(newStubRule(RuleClientReuseID, "Clients should be reused; avoid creating per-request clients"))
@@ -31,9 +34,7 @@ func BuildDefaultRegistry() *Registry {
 	reg.Add(newStubRule(RuleManualPollingInsteadOfWatchID, "Avoid manual polling where watch/informers suffice"))
 	reg.Add(newStubRule(RuleUnboundedWorkQueueID, "Use rate-limited and bounded work queues in controllers"))
 	reg.Add(newStubRule(RuleNoBackoffOnRequeueID, "Requeues should use rate limiting/backoff"))
-	reg.Add(newStubRule(RuleNoFieldSelectorID, "Use field selectors to scope list calls"))
-	reg.Add(newStubRule(RuleNoLabelSelectorID, "Use label selectors to scope list calls"))
-	reg.Add(newStubRule(RuleWideNamespaceScansID, "Avoid cluster-wide scans when namespace-scoped is enough"))
+	reg.Add(newStubRule(RuleNoFieldSelectorID, "Use field selectors to scope list calls (covered partially by K8S021)"))
 	reg.Add(newStubRule(RuleLargePageSizesID, "Avoid unbounded page sizes in list calls"))
 	reg.Add(newStubRule(RuleIgnoring429AndBackoffID, "Honor 429s and implement backoff"))
 	reg.Add(newStubRule(RuleNoRetryForTransientErrorsID, "Retry transient errors with backoff"))

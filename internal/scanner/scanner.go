@@ -37,3 +37,21 @@ func (s *Scanner) SetDisabledRules(ids []string) {
 	}
 	s.engine = NewEngine(filtered...)
 }
+
+// SetEnabledRules restricts the engine to only the provided rule IDs.
+func (s *Scanner) SetEnabledRules(ids []string) {
+	allowed := map[string]struct{}{}
+	for _, id := range ids {
+		if id == "" {
+			continue
+		}
+		allowed[id] = struct{}{}
+	}
+	var filtered []Rule
+	for _, r := range s.registry.Rules() {
+		if _, ok := allowed[r.ID()]; ok {
+			filtered = append(filtered, r)
+		}
+	}
+	s.engine = NewEngine(filtered...)
+}

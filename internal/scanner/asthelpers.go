@@ -1,6 +1,10 @@
 package scanner
 
-import "go/ast"
+import (
+	"go/ast"
+	"go/types"
+	"strings"
+)
 
 // knownResourceSelectors lists common typed-client resource selector names
 // across core, apps, batch and common ecosystem resources (extend as needed).
@@ -534,6 +538,90 @@ func chainHasResourceName(expr ast.Expr) bool {
 	case *ast.CallExpr:
 		// traverse into function for chained calls like Pods("")
 		return chainHasResourceName(e.Fun)
+	}
+	return false
+}
+
+// findCRMatchOptions scans controller-runtime variadic options and returns whether
+// label or field matching options are present. It handles calls like MatchingLabels(...),
+// as well as composite literals of types like client.MatchingLabels{...}, and identifiers
+// whose type resolves to those option types.
+func findCRMatchOptions(args []ast.Expr, info *types.Info) (hasLabel, hasField bool) {
+	for _, a := range args {
+		switch x := a.(type) {
+		case *ast.CallExpr:
+			switch fun := x.Fun.(type) {
+			case *ast.SelectorExpr:
+				if fun.Sel != nil {
+					switch fun.Sel.Name {
+					case "MatchingLabels", "MatchingLabelsSelector":
+						hasLabel = true
+					case "MatchingFields", "MatchingFieldsSelector":
+						hasField = true
+					}
+				}
+			case *ast.Ident:
+				switch fun.Name {
+				case "MatchingLabels", "MatchingLabelsSelector":
+					hasLabel = true
+				case "MatchingFields", "MatchingFieldsSelector":
+					hasField = true
+				}
+			}
+		case *ast.CompositeLit:
+			// Type may be selector or ident e.g., client.MatchingLabels{...}
+			switch t := x.Type.(type) {
+			case *ast.SelectorExpr:
+				if t.Sel != nil {
+					switch t.Sel.Name {
+					case "MatchingLabels", "MatchingLabelsSelector":
+						hasLabel = true
+					case "MatchingFields", "MatchingFieldsSelector":
+						hasField = true
+					}
+				}
+			case *ast.Ident:
+				switch t.Name {
+				case "MatchingLabels", "MatchingLabelsSelector":
+					hasLabel = true
+				case "MatchingFields", "MatchingFieldsSelector":
+					hasField = true
+				}
+			}
+		case *ast.Ident:
+			if info != nil {
+				if typ := info.TypeOf(x); typ != nil {
+					// Try to resolve named type name
+					if n, ok := typ.(*types.Named); ok {
+						name := n.Obj().Name()
+						switch name {
+						case "MatchingLabels", "MatchingLabelsSelector":
+							hasLabel = true
+						case "MatchingFields", "MatchingFieldsSelector":
+							hasField = true
+						}
+					} else {
+						// Fallback to string check
+						ts := typ.String()
+						if containsAny(ts, []string{"MatchingLabels", "MatchingLabelsSelector"}) {
+							hasLabel = true
+						}
+						if containsAny(ts, []string{"MatchingFields", "MatchingFieldsSelector"}) {
+							hasField = true
+						}
+					}
+				}
+			}
+		}
+	}
+	return
+}
+
+func containsAny(s string, keys []string) bool {
+	for _, k := range keys {
+		if len(k) > 0 && (strings.Index(s, k) >= 0) {
+			return true
+		}
 	}
 	return false
 }

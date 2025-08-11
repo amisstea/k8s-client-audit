@@ -25,7 +25,6 @@ func BuildDefaultRegistry() *Registry {
 	reg.Add(NewRuleListInLoop())
 	reg.Add(NewRuleMissingContext())
 	reg.Add(NewRuleNoSelectors())
-	reg.Add(NewRuleNoFieldSelector())
 	reg.Add(NewRuleWideNamespace())
 	reg.Add(NewRuleTightErrorLoops())
 

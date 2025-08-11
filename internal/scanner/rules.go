@@ -17,7 +17,6 @@ const (
 	RuleNoBackoffOnRequeueID          = "K8S014"
 
 	// List/Watch usage
-	RuleNoFieldSelectorID    = "K8S020"
 	RuleNoLabelSelectorID    = "K8S021"
 	RuleWideNamespaceScansID = "K8S022"
 	RuleLargePageSizesID     = "K8S023"

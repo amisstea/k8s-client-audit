@@ -21,6 +21,7 @@ func BuildDefaultRegistry() *Registry {
 	reg := NewRegistry()
 	// Concrete early rules
 	reg.Add(NewRuleExcessiveConfig())
+	reg.Add(NewRuleClientReuse())
 	reg.Add(NewRuleListInLoop())
 	reg.Add(NewRuleMissingContext())
 	reg.Add(NewRuleNoSelectors())

@@ -10,11 +10,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"cursor-experiment/internal/analyzers"
 	arunner "cursor-experiment/internal/analyzers/runner"
 	"cursor-experiment/internal/githubclient"
 	"cursor-experiment/internal/gitutil"
-	"cursor-experiment/internal/scanner"
 )
 
 type Options struct {
@@ -110,30 +108,10 @@ func Run(ctx context.Context, args []string) error {
 
 	// Run scanner per-repository directory under DestDir
 	slog.Info("🔎 Scanning repositories for Kubernetes API usage anti-patterns", "root", opts.DestDir)
-	sc := scanner.New()
-	if *includeRules != "" {
-		var list []string
-		for _, id := range splitAndTrim(*includeRules) {
-			if id != "" {
-				list = append(list, id)
-			}
-		}
-		sc.SetEnabledRules(list)
-		slog.Info("rules enabled exclusively", "ids", list)
-	} else if *disableRules != "" {
-		var list []string
-		for _, id := range splitAndTrim(*disableRules) {
-			if id != "" {
-				list = append(list, id)
-			}
-		}
-		sc.SetDisabledRules(list)
-		slog.Info("rules disabled", "ids", list)
-	}
 
 	entries, err := os.ReadDir(opts.DestDir)
 	if err != nil {
-		slog.Error("failed to read destination directory", "error", err, "dir", opts.DestDir)
+		slog.Error("❌ Failed to read destination directory", "error", err, "dir", opts.DestDir)
 		return err
 	}
 	totalIssues := 0
@@ -153,14 +131,10 @@ func Run(ctx context.Context, args []string) error {
 		}
 		slog.Info("📂 Scanning repo", "repo", ent.Name())
 
-		specs := []arunner.Spec{
-			{RuleID: "K8S002", Title: "rest.Config QPS/Burst missing or unrealistic", Suggestion: "Set reasonable QPS/Burst (e.g., QPS=20, Burst=50)", Analyzer: analyzers.AnalyzerQPSBurst},
-			{RuleID: "K8S032", Title: "Tight error loop without backoff around Kubernetes API calls", Suggestion: "Insert backoff or sleep when retrying on errors", Analyzer: analyzers.AnalyzerTightErrorLoops},
-			{RuleID: "K8S011", Title: "List/Watch call inside loop", Suggestion: "Prefer informers/cache or move calls outside loops", Analyzer: analyzers.AnalyzerListInLoop},
-		}
+		specs := buildAnalyzerSpecs(*includeRules, *disableRules)
 		issues, err := arunner.RunSpecs(ctx, repoDir, specs)
 		if err != nil {
-			slog.Error("analyzer run failed", "repo", ent.Name(), "error", err)
+			slog.Error("❌ Analyzer run failed", "repo", ent.Name(), "error", err)
 		}
 		scanned++
 		if len(issues) == 0 {

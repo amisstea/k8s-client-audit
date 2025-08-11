@@ -37,7 +37,6 @@ func (r *ruleNoSelectors) Apply(ctx context.Context, fset *token.FileSet, pkg *p
 					RuleID:      r.ID(),
 					Title:       "controller-runtime List without options",
 					Description: "Consider scoping List with namespace, labels or fields to reduce load",
-					PackagePath: pkg.PkgPath,
 					Position:    Position{Filename: pos.Filename, Line: pos.Line, Column: pos.Column},
 					Suggestion:  "Use client.InNamespace, client.MatchingLabels, or client.MatchingFields",
 				})
@@ -57,7 +56,6 @@ func (r *ruleNoSelectors) Apply(ctx context.Context, fset *token.FileSet, pkg *p
 					RuleID:      r.ID(),
 					Title:       "List without label/field selectors",
 					Description: "Unfiltered List may be expensive; add MatchingLabels/MatchingFields where feasible",
-					PackagePath: pkg.PkgPath,
 					Position:    Position{Filename: pos.Filename, Line: pos.Line, Column: pos.Column},
 					Suggestion:  "Use client.MatchingLabels/MatchingFields or their *Selector variants",
 				})
@@ -96,7 +94,6 @@ func (r *ruleNoSelectors) Apply(ctx context.Context, fset *token.FileSet, pkg *p
 								RuleID:      r.ID(),
 								Title:       "List without label/field selectors",
 								Description: "Unfiltered List may be expensive; add label or field selectors when feasible",
-								PackagePath: pkg.PkgPath,
 								Position:    Position{Filename: pos.Filename, Line: pos.Line, Column: pos.Column},
 								Suggestion:  "Set metav1.ListOptions{LabelSelector: ..., FieldSelector: ...}",
 							})

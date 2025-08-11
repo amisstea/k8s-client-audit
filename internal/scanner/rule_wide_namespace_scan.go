@@ -39,7 +39,6 @@ func (r *ruleWideNamespace) Apply(ctx context.Context, fset *token.FileSet, pkg 
 									RuleID:      r.ID(),
 									Title:       "All-namespaces list",
 									Description: "Listing across all namespaces is expensive; scope to a namespace if possible",
-									PackagePath: pkg.PkgPath,
 									Position:    Position{Filename: pos.Filename, Line: pos.Line, Column: pos.Column},
 									Suggestion:  "Specify a concrete namespace with client.InNamespace(\"ns\")",
 								})
@@ -55,7 +54,6 @@ func (r *ruleWideNamespace) Apply(ctx context.Context, fset *token.FileSet, pkg 
 							RuleID:      r.ID(),
 							Title:       "All-namespaces list",
 							Description: "Listing across all namespaces is expensive; scope to a namespace if possible",
-							PackagePath: pkg.PkgPath,
 							Position:    Position{Filename: pos.Filename, Line: pos.Line, Column: pos.Column},
 							Suggestion:  "Provide a concrete namespace in typed client calls (e.g., Pods(\"ns\").List) or use namespaced clients",
 						})
@@ -71,7 +69,6 @@ func (r *ruleWideNamespace) Apply(ctx context.Context, fset *token.FileSet, pkg 
 									RuleID:      r.ID(),
 									Title:       "All-namespaces list",
 									Description: "Listing across all namespaces is expensive; scope to a namespace if possible",
-									PackagePath: pkg.PkgPath,
 									Position:    Position{Filename: pos.Filename, Line: pos.Line, Column: pos.Column},
 									Suggestion:  "Specify a concrete namespace with client.InNamespace(\"ns\")",
 								})

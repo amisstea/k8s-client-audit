@@ -12,7 +12,6 @@ type Issue struct {
 	RuleID      string
 	Title       string
 	Description string
-	PackagePath string
 	Position    Position
 	Suggestion  string
 }

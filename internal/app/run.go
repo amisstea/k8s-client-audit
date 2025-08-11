@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"time"
 
+	"cursor-experiment/internal/analyzers"
+	arunner "cursor-experiment/internal/analyzers/runner"
 	"cursor-experiment/internal/githubclient"
 	"cursor-experiment/internal/gitutil"
 	"cursor-experiment/internal/scanner"
@@ -128,6 +130,7 @@ func Run(ctx context.Context, args []string) error {
 		sc.SetDisabledRules(list)
 		slog.Info("rules disabled", "ids", list)
 	}
+
 	entries, err := os.ReadDir(opts.DestDir)
 	if err != nil {
 		slog.Error("failed to read destination directory", "error", err, "dir", opts.DestDir)
@@ -149,12 +152,34 @@ func Run(ctx context.Context, args []string) error {
 			continue
 		}
 		slog.Info("📂 Scanning repo", "repo", ent.Name())
-		issues, err := sc.ScanDirectory(ctx, repoDir)
-		scanned++
-		if err != nil {
-			slog.Error("❌ Scan failed for repo", "repo", ent.Name(), "error", err)
-			continue
+
+		specs := []arunner.Spec{
+			{RuleID: "K8S002", Title: "rest.Config QPS/Burst missing or unrealistic", Suggestion: "Set reasonable QPS/Burst (e.g., QPS=20, Burst=50)", Analyzer: analyzers.AnalyzerQPSBurst},
+			{RuleID: "K8S032", Title: "Tight error loop without backoff around Kubernetes API calls", Suggestion: "Insert backoff or sleep when retrying on errors", Analyzer: analyzers.AnalyzerTightErrorLoops},
+			{RuleID: "K8S011", Title: "List/Watch call inside loop", Suggestion: "Prefer informers/cache or move calls outside loops", Analyzer: analyzers.AnalyzerListInLoop},
 		}
+		findings, err := arunner.RunSpecs(ctx, repoDir, specs)
+		if err != nil {
+			slog.Error("analyzer run failed", "repo", ent.Name(), "error", err)
+		}
+		var issues []scanner.Issue
+		for _, f := range findings {
+			issues = append(issues, scanner.Issue{
+				RuleID:      f.RuleID,
+				Title:       f.Title,
+				Description: f.Message,
+				Position:    scanner.Position{Filename: f.Filename, Line: f.Line, Column: f.Column},
+				Suggestion:  f.Suggestion,
+			})
+		}
+		// If user explicitly included other rules, also run the legacy scanner
+		if *includeRules != "" {
+			sIssues, sErr := sc.ScanDirectory(ctx, repoDir)
+			if sErr == nil {
+				issues = append(issues, sIssues...)
+			}
+		}
+		scanned++
 		if len(issues) == 0 {
 			slog.Info("✅ No issues", "repo", ent.Name())
 			continue

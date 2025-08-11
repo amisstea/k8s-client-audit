@@ -44,7 +44,6 @@ func (r *ruleClientReuse) Apply(ctx context.Context, fset *token.FileSet, pkg *p
 									RuleID:      r.ID(),
 									Title:       "Client constructed inside loop",
 									Description: "Constructing clients inside loops is expensive; create once and reuse",
-									PackagePath: pkg.PkgPath,
 									Position:    Position{Filename: pos.Filename, Line: pos.Line, Column: pos.Column},
 									Suggestion:  "Initialize clients during setup and pass them into hot paths",
 								})
@@ -60,7 +59,6 @@ func (r *ruleClientReuse) Apply(ctx context.Context, fset *token.FileSet, pkg *p
 							RuleID:      r.ID(),
 							Title:       "Client constructed in hot path",
 							Description: "Avoid constructing Kubernetes clients in hot paths like Reconcile/handlers",
-							PackagePath: pkg.PkgPath,
 							Position:    Position{Filename: pos.Filename, Line: pos.Line, Column: pos.Column},
 							Suggestion:  "Create clients once (e.g., at startup) and reuse via dependency injection",
 						})

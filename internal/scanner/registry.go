@@ -22,12 +22,10 @@ func BuildDefaultRegistry() *Registry {
 	// Concrete early rules
 	reg.Add(NewRuleExcessiveConfig())
 	reg.Add(NewRuleClientReuse())
-	reg.Add(NewRuleQPSBurst())
-	reg.Add(NewRuleListInLoop())
+	// Analyzer now covers list-in-loop (K8S011)
 	reg.Add(NewRuleMissingContext())
 	reg.Add(NewRuleNoSelectors())
 	reg.Add(NewRuleWideNamespace())
-	reg.Add(NewRuleTightErrorLoops())
 
 	// Remaining rules as stubs to wire taxonomy
 	reg.Add(newStubRule(RuleClientReuseID, "Clients should be reused; avoid creating per-request clients"))

@@ -39,7 +39,6 @@ func (r *ruleWideNamespace) Apply(ctx context.Context, fset *token.FileSet, pkg 
 									RuleID:      r.ID(),
 									Title:       "All-namespaces list",
 									Description: "Listing across all namespaces is expensive; scope to a namespace if possible",
-									Severity:    SeverityWarning,
 									PackagePath: pkg.PkgPath,
 									Position:    Position{Filename: pos.Filename, Line: pos.Line, Column: pos.Column},
 									Suggestion:  "Specify a concrete namespace with client.InNamespace(\"ns\")",
@@ -56,7 +55,6 @@ func (r *ruleWideNamespace) Apply(ctx context.Context, fset *token.FileSet, pkg 
 							RuleID:      r.ID(),
 							Title:       "All-namespaces list",
 							Description: "Listing across all namespaces is expensive; scope to a namespace if possible",
-							Severity:    SeverityWarning,
 							PackagePath: pkg.PkgPath,
 							Position:    Position{Filename: pos.Filename, Line: pos.Line, Column: pos.Column},
 							Suggestion:  "Provide a concrete namespace in typed client calls (e.g., Pods(\"ns\").List) or use namespaced clients",
@@ -73,7 +71,6 @@ func (r *ruleWideNamespace) Apply(ctx context.Context, fset *token.FileSet, pkg 
 									RuleID:      r.ID(),
 									Title:       "All-namespaces list",
 									Description: "Listing across all namespaces is expensive; scope to a namespace if possible",
-									Severity:    SeverityWarning,
 									PackagePath: pkg.PkgPath,
 									Position:    Position{Filename: pos.Filename, Line: pos.Line, Column: pos.Column},
 									Suggestion:  "Specify a concrete namespace with client.InNamespace(\"ns\")",
@@ -87,26 +84,4 @@ func (r *ruleWideNamespace) Apply(ctx context.Context, fset *token.FileSet, pkg 
 		})
 	}
 	return issues, nil
-}
-
-// hasEmptyStringNamespaceArg returns true if within the selector/call chain
-// there is a call expression whose first argument is an empty string literal.
-// Intended to catch typed client patterns like Pods("").List(...).
-func hasEmptyStringNamespaceArg(expr ast.Expr) bool {
-	switch e := expr.(type) {
-	case *ast.CallExpr:
-		if len(e.Args) > 0 {
-			if bl, ok := e.Args[0].(*ast.BasicLit); ok {
-				if bl.Value == "\"\"" {
-					return true
-				}
-			}
-		}
-		// Also dive into the function in case of chained calls
-		return hasEmptyStringNamespaceArg(e.Fun)
-	case *ast.SelectorExpr:
-		return hasEmptyStringNamespaceArg(e.X)
-	default:
-		return false
-	}
 }

@@ -27,7 +27,7 @@ func Run(ctx context.Context, args []string) error {
 	dest := fs.String("dest", "sources", "Destination directory for repositories")
 	skipClone := fs.Bool("skip-clone", false, "Skip cloning/updating sources; assume they exist")
 	debug := fs.Bool("debug", false, "Enable debug logging across the app")
-	disableRules := fs.String("disable-rules", "K8S003", "Comma-separated rule IDs to disable (default disables K8S003)")
+	disableRules := fs.String("disable-rules", "K8S003,K8S020", "Comma-separated rule IDs to disable (default disables K8S003)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -126,6 +126,8 @@ func Run(ctx context.Context, args []string) error {
 	}
 	totalIssues := 0
 	scanned := 0
+	ruleCounts := map[string]int{}
+	repoCounts := map[string]int{}
 	for _, ent := range entries {
 		if !ent.IsDir() {
 			continue
@@ -134,14 +136,14 @@ func Run(ctx context.Context, args []string) error {
 		// Prefer scanning only go modules
 		if _, err := os.Stat(filepath.Join(repoDir, "go.mod")); err != nil {
 			// Not a Go module
-			slog.Warn("⚠️  Not a go module; skipping", "repo", ent.Name())
+			slog.Info("⚪ Not a go module; skipping", "repo", ent.Name())
 			continue
 		}
 		slog.Info("📂 Scanning repo", "repo", ent.Name())
 		issues, err := sc.ScanDirectory(ctx, repoDir)
 		scanned++
 		if err != nil {
-			slog.Error("scan failed for repo", "repo", ent.Name(), "error", err)
+			slog.Error("❌ Scan failed for repo", "repo", ent.Name(), "error", err)
 			continue
 		}
 		if len(issues) == 0 {
@@ -151,18 +153,20 @@ func Run(ctx context.Context, args []string) error {
 		totalIssues += len(issues)
 		slog.Warn("⚠️  Issues found", "repo", ent.Name(), "count", len(issues))
 		for _, is := range issues {
-			slog.Log(ctx, slog.LevelWarn, "⚠️  issue",
+			slog.Log(ctx, slog.LevelWarn, "⚠️  Issue",
 				"repo", ent.Name(),
-				"severity", is.Severity,
 				"rule", is.RuleID,
 				"title", is.Title,
+				"description", is.Description,
 				"file", is.Position.Filename,
 				"line", is.Position.Line,
 				"suggestion", is.Suggestion,
 			)
+			ruleCounts[is.RuleID]++
+			repoCounts[ent.Name()]++
 		}
 	}
-	slog.Info("🧾 Scan summary", "repos_scanned", scanned, "total_issues", totalIssues)
+	slog.Info("📊 Scan summary", "repos_scanned", scanned, "total_issues", totalIssues, "issues_by_rule", ruleCounts, "issues_by_repo", repoCounts)
 
 	return nil
 }

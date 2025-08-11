@@ -76,7 +76,6 @@ func (r *ruleNoFieldSelector) Apply(ctx context.Context, fset *token.FileSet, pk
 					RuleID:      r.ID(),
 					Title:       "List without field selector",
 					Description: "Consider using field selectors (e.g., name or namespace) to scope List calls when feasible",
-					Severity:    SeverityWarning,
 					PackagePath: pkg.PkgPath,
 					Position:    Position{Filename: pos.Filename, Line: pos.Line, Column: pos.Column},
 					Suggestion:  "Use client.MatchingFields/MatchingFieldsSelector or set ListOptions.FieldSelector",

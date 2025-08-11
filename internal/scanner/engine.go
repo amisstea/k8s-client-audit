@@ -52,7 +52,7 @@ func (e *Engine) Run(ctx context.Context, dir string) ([]Issue, error) {
 		if len(p.Syntax) == 0 {
 			continue
 		}
-		slog.Info("🧩 Scanning package", "pkg", p.PkgPath, "files", len(p.Syntax))
+		slog.Debug("🔍 Scanning package", "pkg", p.PkgPath, "files", len(p.Syntax))
 		// Ensure AST is available
 		for range p.Syntax {
 			_ = &ast.File{}

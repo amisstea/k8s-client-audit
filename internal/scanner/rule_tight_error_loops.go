@@ -28,6 +28,7 @@ func (r *ruleTightErrorLoops) Apply(ctx context.Context, fset *token.FileSet, pk
 			}
 			hasErrorCheck := false
 			hasSleep := false
+			hasKubeAPICall := false
 			ast.Inspect(loop.Body, func(n2 ast.Node) bool {
 				// detect time.Sleep or backoff.Sleep calls
 				if call, ok := n2.(*ast.CallExpr); ok {
@@ -35,6 +36,9 @@ func (r *ruleTightErrorLoops) Apply(ctx context.Context, fset *token.FileSet, pk
 						if sel.Sel != nil && sel.Sel.Name == "Sleep" {
 							hasSleep = true
 						}
+					}
+					if isLikelyKubeAPICall(call) {
+						hasKubeAPICall = true
 					}
 				}
 				if ifs, ok := n2.(*ast.IfStmt); ok {
@@ -51,13 +55,12 @@ func (r *ruleTightErrorLoops) Apply(ctx context.Context, fset *token.FileSet, pk
 				}
 				return true
 			})
-			if hasErrorCheck && !hasSleep {
+			if hasErrorCheck && hasKubeAPICall && !hasSleep {
 				pos := fset.Position(loop.For)
 				issues = append(issues, Issue{
 					RuleID:      r.ID(),
 					Title:       "Tight loop on errors without backoff",
 					Description: "Add backoff or sleep when retrying on errors in a loop",
-					Severity:    SeverityWarning,
 					PackagePath: pkg.PkgPath,
 					Position:    Position{Filename: pos.Filename, Line: pos.Line, Column: pos.Column},
 					Suggestion:  "Use time.Sleep or a rate-limiter/backoff strategy",

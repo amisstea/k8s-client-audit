@@ -53,7 +53,6 @@ func (r *ruleListInLoop) checkLoopBody(fset *token.FileSet, pkg *packages.Packag
 						RuleID:      r.ID(),
 						Title:       "List/Watch call inside loop",
 						Description: "List/Watch inside loops can overload the API server; prefer informers/cache or move calls outside loops",
-						Severity:    SeverityWarning,
 						PackagePath: pkg.PkgPath,
 						Position:    Position{Filename: pos.Filename, Line: pos.Line, Column: pos.Column},
 						Suggestion:  "Refactor to use SharedInformers or cached client, or collect identities and perform batched queries",

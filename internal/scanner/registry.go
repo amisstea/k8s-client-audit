@@ -39,7 +39,6 @@ func BuildDefaultRegistry() *Registry {
 	reg.Add(newStubRule(RuleIgnoring429AndBackoffID, "Honor 429s and implement backoff"))
 	reg.Add(newStubRule(RuleNoRetryForTransientErrorsID, "Retry transient errors with backoff"))
 	reg.Add(newStubRule(RuleNoResyncPeriodID, "Set appropriate resync periods for informers if needed"))
-	reg.Add(newStubRule(RuleNoContextCancellationID, "Propagate context cancellation to API calls"))
 	reg.Add(newStubRule(RuleLeakyWatchChannelsID, "Ensure watches are stopped and channels drained"))
 	reg.Add(newStubRule(RuleRestConfigDefaultsID, "Verify rest.Config has sane timeouts and UserAgent"))
 	reg.Add(newStubRule(RuleDynamicClientOveruseID, "Avoid overuse of dynamic/unstructured when typed clients exist"))

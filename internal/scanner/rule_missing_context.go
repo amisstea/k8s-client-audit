@@ -50,7 +50,6 @@ func (r *ruleMissingContext) Apply(ctx context.Context, fset *token.FileSet, pkg
 										RuleID:      r.ID(),
 										Title:       "Client call uses context.Background/TODO",
 										Description: "Propagate caller's context instead of using context.Background/TODO to honor deadlines and cancellation",
-										Severity:    SeverityWarning,
 										PackagePath: pkg.PkgPath,
 										Position:    Position{Filename: pos.Filename, Line: pos.Line, Column: pos.Column},
 										Suggestion:  "Accept a context in the surrounding function and pass it through",

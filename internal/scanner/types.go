@@ -1,13 +1,5 @@
 package scanner
 
-// Severity indicates how severe a finding is.
-type Severity string
-
-const (
-	SeverityWarning Severity = "WARNING"
-	SeverityError   Severity = "ERROR"
-)
-
 // Position indicates where in source code a finding occurred.
 type Position struct {
 	Filename string
@@ -20,7 +12,6 @@ type Issue struct {
 	RuleID      string
 	Title       string
 	Description string
-	Severity    Severity
 	PackagePath string
 	Position    Position
 	Suggestion  string

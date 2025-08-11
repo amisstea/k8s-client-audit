@@ -158,26 +158,9 @@ func Run(ctx context.Context, args []string) error {
 			{RuleID: "K8S032", Title: "Tight error loop without backoff around Kubernetes API calls", Suggestion: "Insert backoff or sleep when retrying on errors", Analyzer: analyzers.AnalyzerTightErrorLoops},
 			{RuleID: "K8S011", Title: "List/Watch call inside loop", Suggestion: "Prefer informers/cache or move calls outside loops", Analyzer: analyzers.AnalyzerListInLoop},
 		}
-		findings, err := arunner.RunSpecs(ctx, repoDir, specs)
+		issues, err := arunner.RunSpecs(ctx, repoDir, specs)
 		if err != nil {
 			slog.Error("analyzer run failed", "repo", ent.Name(), "error", err)
-		}
-		var issues []scanner.Issue
-		for _, f := range findings {
-			issues = append(issues, scanner.Issue{
-				RuleID:      f.RuleID,
-				Title:       f.Title,
-				Description: f.Message,
-				Position:    scanner.Position{Filename: f.Filename, Line: f.Line, Column: f.Column},
-				Suggestion:  f.Suggestion,
-			})
-		}
-		// If user explicitly included other rules, also run the legacy scanner
-		if *includeRules != "" {
-			sIssues, sErr := sc.ScanDirectory(ctx, repoDir)
-			if sErr == nil {
-				issues = append(issues, sIssues...)
-			}
 		}
 		scanned++
 		if len(issues) == 0 {
@@ -191,9 +174,10 @@ func Run(ctx context.Context, args []string) error {
 				"repo", ent.Name(),
 				"rule", is.RuleID,
 				"title", is.Title,
-				"description", is.Description,
-				"file", is.Position.Filename,
-				"line", is.Position.Line,
+				"message", is.Message,
+				"file", is.Filename,
+				"line", is.Line,
+				"column", is.Column,
 				"suggestion", is.Suggestion,
 			)
 			ruleCounts[is.RuleID]++

@@ -22,9 +22,6 @@ func BuildDefaultRegistry() *Registry {
 	// All rules migrated to analyzers; keep registry empty for legacy scanner
 
 	// Remaining rules as stubs to wire taxonomy
-	reg.Add(newStubRule(RuleClientReuseID, "Clients should be reused; avoid creating per-request clients"))
-	reg.Add(newStubRule(RuleQPSBurstConfigID, "Ensure rest.Config QPS/Burst are tuned and not unlimited"))
-	reg.Add(newStubRule(RuleMissingSharedInformerID, "Prefer SharedInformerFactory over manual polling"))
 	reg.Add(newStubRule(RuleManualPollingInsteadOfWatchID, "Avoid manual polling where watch/informers suffice"))
 	reg.Add(newStubRule(RuleUnboundedWorkQueueID, "Use rate-limited and bounded work queues in controllers"))
 	reg.Add(newStubRule(RuleNoBackoffOnRequeueID, "Requeues should use rate limiting/backoff"))

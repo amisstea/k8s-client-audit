@@ -25,6 +25,7 @@ func buildAnalyzerSpecs(includeCSV, disableCSV string) []arunner.Spec {
 	catalog := map[string]arunner.Spec{
 		"K8S001": {RuleID: "K8S001", Title: "Client constructed in loop or hot path", Suggestion: "Reuse a singleton client", Analyzer: analyzers.AnalyzerClientReuse},
 		"K8S002": {RuleID: "K8S002", Title: "rest.Config QPS/Burst missing or unrealistic", Suggestion: "Set reasonable QPS/Burst (e.g., QPS=20, Burst=50)", Analyzer: analyzers.AnalyzerQPSBurst},
+		"K8S010": {RuleID: "K8S010", Title: "Direct Watch without shared informer", Suggestion: "Use shared informers/cache to avoid expensive Watches", Analyzer: analyzers.AnalyzerMissingInformer},
 		"K8S011": {RuleID: "K8S011", Title: "List/Watch call inside loop", Suggestion: "Prefer informers/cache or move calls outside loops", Analyzer: analyzers.AnalyzerListInLoop},
 		"K8S021": {RuleID: "K8S021", Title: "List without label/field selectors", Suggestion: "Use MatchingLabels/Fields or ListOptions selectors", Analyzer: analyzers.AnalyzerNoSelectors},
 		"K8S022": {RuleID: "K8S022", Title: "All-namespaces list", Suggestion: "Scope to a specific namespace", Analyzer: analyzers.AnalyzerWideNamespace},

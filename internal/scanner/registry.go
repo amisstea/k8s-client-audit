@@ -9,12 +9,12 @@ import (
 
 // Registry holds a set of rules to run.
 type Registry struct {
-	rules []Rule
+	rules []any
 }
 
-func NewRegistry() *Registry      { return &Registry{} }
-func (r *Registry) Add(rule Rule) { r.rules = append(r.rules, rule) }
-func (r *Registry) Rules() []Rule { return append([]Rule{}, r.rules...) }
+func NewRegistry() *Registry     { return &Registry{} }
+func (r *Registry) Add(rule any) { r.rules = append(r.rules, rule) }
+func (r *Registry) Rules() []any { return append([]any{}, r.rules...) }
 
 // BuildDefaultRegistry returns a registry with all planned rules registered (stubs for now).
 func BuildDefaultRegistry() *Registry {
@@ -56,6 +56,6 @@ func newStubRule(id, description string) *stubRule {
 }
 func (s *stubRule) ID() string          { return s.id }
 func (s *stubRule) Description() string { return s.description }
-func (s *stubRule) Apply(ctx context.Context, _ *token.FileSet, _ *packages.Package) ([]Issue, error) {
+func (s *stubRule) Apply(ctx context.Context, _ *token.FileSet, _ *packages.Package) (any, error) {
 	return nil, nil
 }

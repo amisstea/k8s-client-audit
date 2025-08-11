@@ -1,0 +1,59 @@
+package analyzers
+
+import (
+	"go/ast"
+	"go/parser"
+	"go/token"
+	"go/types"
+	"testing"
+
+	"golang.org/x/tools/go/analysis"
+)
+
+func runClientReuseAnalyzerOnSrc(t *testing.T, src string) []analysis.Diagnostic {
+	t.Helper()
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "", src, 0)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	files := []*ast.File{f}
+	info := &types.Info{Types: map[ast.Expr]types.TypeAndValue{}, Defs: map[*ast.Ident]types.Object{}, Uses: map[*ast.Ident]types.Object{}, Selections: map[*ast.SelectorExpr]*types.Selection{}}
+	var conf types.Config
+	_, _ = conf.Check("p", fset, files, info)
+	var diags []analysis.Diagnostic
+	pass := &analysis.Pass{Analyzer: AnalyzerClientReuse, Fset: fset, Files: files, TypesInfo: info, TypesSizes: types.SizesFor("gc", "amd64"), Report: func(d analysis.Diagnostic) { diags = append(diags, d) }, ResultOf: map[*analysis.Analyzer]interface{}{}}
+	_, _ = AnalyzerClientReuse.Run(pass)
+	return diags
+}
+
+func TestClientReuse_InLoop_Flagged(t *testing.T) {
+	src := `package a
+func NewForConfig(x any) any { return nil }
+func f(){ for i:=0;i<3;i++{ _ = NewForConfig(nil) } }`
+	diags := runClientReuseAnalyzerOnSrc(t, src)
+	if len(diags) == 0 {
+		t.Fatalf("expected diagnostic for client creation in loop")
+	}
+}
+
+func TestClientReuse_InHotPath_Flagged(t *testing.T) {
+	src := `package a
+func NewForConfig(x any) any { return nil }
+type Reconciler struct{}
+func (r *Reconciler) Reconcile(){ _ = NewForConfig(nil) }`
+	diags := runClientReuseAnalyzerOnSrc(t, src)
+	if len(diags) == 0 {
+		t.Fatalf("expected diagnostic for client creation in hot path")
+	}
+}
+
+func TestClientReuse_Init_NoDiag(t *testing.T) {
+	src := `package a
+func NewForConfig(x any) any { return nil }
+func init(){ _ = NewForConfig(nil) }`
+	diags := runClientReuseAnalyzerOnSrc(t, src)
+	if len(diags) != 0 {
+		t.Fatalf("did not expect diagnostic for init-time creation, got %d", len(diags))
+	}
+}

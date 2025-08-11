@@ -19,13 +19,7 @@ func (r *Registry) Rules() []Rule { return append([]Rule{}, r.rules...) }
 // BuildDefaultRegistry returns a registry with all planned rules registered (stubs for now).
 func BuildDefaultRegistry() *Registry {
 	reg := NewRegistry()
-	// Concrete early rules
-	reg.Add(NewRuleExcessiveConfig())
-	reg.Add(NewRuleClientReuse())
-	// Analyzer now covers list-in-loop (K8S011)
-	reg.Add(NewRuleMissingContext())
-	reg.Add(NewRuleNoSelectors())
-	reg.Add(NewRuleWideNamespace())
+	// All rules migrated to analyzers; keep registry empty for legacy scanner
 
 	// Remaining rules as stubs to wire taxonomy
 	reg.Add(newStubRule(RuleClientReuseID, "Clients should be reused; avoid creating per-request clients"))

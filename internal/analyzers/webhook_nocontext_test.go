@@ -1,0 +1,48 @@
+package analyzers
+
+import (
+	"go/ast"
+	"go/parser"
+	"go/token"
+	"go/types"
+	"testing"
+
+	"golang.org/x/tools/go/analysis"
+)
+
+func runWebhookNoContextAnalyzerOnSrc(t *testing.T, src string) []analysis.Diagnostic {
+	t.Helper()
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "", src, 0)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	files := []*ast.File{f}
+	info := &types.Info{Types: map[ast.Expr]types.TypeAndValue{}, Defs: map[*ast.Ident]types.Object{}, Uses: map[*ast.Ident]types.Object{}, Selections: map[*ast.SelectorExpr]*types.Selection{}}
+	var conf types.Config
+	_, _ = conf.Check("p", fset, files, info)
+	var diags []analysis.Diagnostic
+	pass := &analysis.Pass{Analyzer: AnalyzerWebhookNoContext, Fset: fset, Files: files, TypesInfo: info, TypesSizes: types.SizesFor("gc", "amd64"), Report: func(d analysis.Diagnostic) { diags = append(diags, d) }, ResultOf: map[*analysis.Analyzer]interface{}{}}
+	_, _ = AnalyzerWebhookNoContext.Run(pass)
+	return diags
+}
+
+func TestWebhookNoContext_Background_Flagged(t *testing.T) {
+	src := `package a
+import "context"
+func f(){ _ = context.Background() }`
+	diags := runWebhookNoContextAnalyzerOnSrc(t, src)
+	if len(diags) == 0 {
+		t.Fatalf("expected diagnostic for context.Background in webhook code")
+	}
+}
+
+func TestWebhookNoContext_NoBackground_NoDiag(t *testing.T) {
+	src := `package a
+func f(){}
+`
+	diags := runWebhookNoContextAnalyzerOnSrc(t, src)
+	if len(diags) != 0 {
+		t.Fatalf("did not expect diagnostic when no Background/TODO present")
+	}
+}

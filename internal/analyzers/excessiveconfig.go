@@ -120,18 +120,4 @@ func isHotPath(pass *analysis.Pass, fd *ast.FuncDecl) bool {
 	return false
 }
 
-func deref(t types.Type) types.Type {
-	if p, ok := t.(*types.Pointer); ok {
-		return p.Elem()
-	}
-	return t
-}
-
-func isNamed(t types.Type, pkgPath, name string) bool {
-	if n, ok := t.(*types.Named); ok {
-		if n.Obj() != nil && n.Obj().Pkg() != nil {
-			return n.Obj().Pkg().Path() == pkgPath && n.Obj().Name() == name
-		}
-	}
-	return false
-}
+// moved to helpers.go: deref, isNamed

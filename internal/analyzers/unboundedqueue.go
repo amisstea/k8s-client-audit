@@ -46,14 +46,4 @@ func runUnboundedQueue(pass *analysis.Pass) (any, error) {
 	return nil, nil
 }
 
-func calleeIdent(expr ast.Expr) *ast.Ident {
-	switch x := expr.(type) {
-	case *ast.Ident:
-		return x
-	case *ast.SelectorExpr:
-		if x.Sel != nil {
-			return x.Sel
-		}
-	}
-	return nil
-}
+// calleeIdent now provided in helpers.go

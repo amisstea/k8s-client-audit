@@ -1,31 +1,19 @@
 package analyzers
 
 import (
-	"go/ast"
-	"go/parser"
-	"go/token"
-	"go/types"
 	"testing"
 
+	"cursor-experiment/internal/analyzers/testutil"
+
 	"golang.org/x/tools/go/analysis"
-	insppass "golang.org/x/tools/go/analysis/passes/inspect"
-	"golang.org/x/tools/go/ast/inspector"
 )
 
 func runNoResyncAnalyzerOnSrc(t *testing.T, src string) []analysis.Diagnostic {
 	t.Helper()
-	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "", src, 0)
+	diags, err := testutil.RunAnalyzerOnSrc(AnalyzerNoResync, src, nil)
 	if err != nil {
-		t.Fatalf("parse: %v", err)
+		t.Fatalf("run: %v", err)
 	}
-	files := []*ast.File{f}
-	info := &types.Info{Types: map[ast.Expr]types.TypeAndValue{}, Defs: map[*ast.Ident]types.Object{}, Uses: map[*ast.Ident]types.Object{}, Selections: map[*ast.SelectorExpr]*types.Selection{}}
-	var conf types.Config
-	_, _ = conf.Check("p", fset, files, info)
-	var diags []analysis.Diagnostic
-	pass := &analysis.Pass{Analyzer: AnalyzerNoResync, Fset: fset, Files: files, TypesInfo: info, TypesSizes: types.SizesFor("gc", "amd64"), Report: func(d analysis.Diagnostic) { diags = append(diags, d) }, ResultOf: map[*analysis.Analyzer]interface{}{insppass.Analyzer: inspector.New(files)}}
-	_, _ = AnalyzerNoResync.Run(pass)
 	return diags
 }
 

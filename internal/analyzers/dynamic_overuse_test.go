@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"golang.org/x/tools/go/analysis"
+	insppass "golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/ast/inspector"
 )
 
 func runDynamicOveruseAnalyzerOnSrc(t *testing.T, src string) []analysis.Diagnostic {
@@ -21,8 +23,34 @@ func runDynamicOveruseAnalyzerOnSrc(t *testing.T, src string) []analysis.Diagnos
 	info := &types.Info{Types: map[ast.Expr]types.TypeAndValue{}, Defs: map[*ast.Ident]types.Object{}, Uses: map[*ast.Ident]types.Object{}, Selections: map[*ast.SelectorExpr]*types.Selection{}}
 	var conf types.Config
 	_, _ = conf.Check("p", fset, files, info)
+	// Spoof typed and dynamic constructors to their package paths
+	pkgTyped := types.NewPackage("k8s.io/client-go/kubernetes", "kubernetes")
+	pkgDyn := types.NewPackage("k8s.io/client-go/dynamic", "dynamic")
+	ast.Inspect(f, func(n ast.Node) bool {
+		if ce, ok := n.(*ast.CallExpr); ok {
+			switch fun := ce.Fun.(type) {
+			case *ast.Ident:
+				if fun.Name == "NewForConfig" {
+					info.Uses[fun] = types.NewFunc(token.NoPos, pkgTyped, fun.Name, nil)
+				}
+				if fun.Name == "NewDynamicClientForConfig" {
+					info.Uses[fun] = types.NewFunc(token.NoPos, pkgDyn, fun.Name, nil)
+				}
+			case *ast.SelectorExpr:
+				if fun.Sel != nil {
+					if fun.Sel.Name == "NewForConfig" {
+						info.Uses[fun.Sel] = types.NewFunc(token.NoPos, pkgTyped, fun.Sel.Name, nil)
+					}
+					if fun.Sel.Name == "NewDynamicClientForConfig" {
+						info.Uses[fun.Sel] = types.NewFunc(token.NoPos, pkgDyn, fun.Sel.Name, nil)
+					}
+				}
+			}
+		}
+		return true
+	})
 	var diags []analysis.Diagnostic
-	pass := &analysis.Pass{Analyzer: AnalyzerDynamicOveruse, Fset: fset, Files: files, TypesInfo: info, TypesSizes: types.SizesFor("gc", "amd64"), Report: func(d analysis.Diagnostic) { diags = append(diags, d) }, ResultOf: map[*analysis.Analyzer]interface{}{}}
+	pass := &analysis.Pass{Analyzer: AnalyzerDynamicOveruse, Fset: fset, Files: files, TypesInfo: info, TypesSizes: types.SizesFor("gc", "amd64"), Report: func(d analysis.Diagnostic) { diags = append(diags, d) }, ResultOf: map[*analysis.Analyzer]interface{}{insppass.Analyzer: inspector.New(files)}}
 	_, _ = AnalyzerDynamicOveruse.Run(pass)
 	return diags
 }

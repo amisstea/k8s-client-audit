@@ -1,15 +1,32 @@
 package main
 
 import (
-	"context"
-	"log"
-	"os"
+	"cursor-experiment/internal/analyzers"
 
-	"cursor-experiment/internal/app"
+	"golang.org/x/tools/go/analysis/multichecker"
 )
 
 func main() {
-	if err := app.Run(context.Background(), os.Args[1:]); err != nil {
-		log.Fatalf("error: %v", err)
-	}
+	multichecker.Main(
+		analyzers.AnalyzerClientReuse,
+		analyzers.AnalyzerQPSBurst,
+		analyzers.AnalyzerMissingInformer,
+		analyzers.AnalyzerListInLoop,
+		analyzers.AnalyzerManualPolling,
+		analyzers.AnalyzerUnboundedQueue,
+		analyzers.AnalyzerRequeueBackoff,
+		analyzers.AnalyzerNoSelectors,
+		analyzers.AnalyzerWideNamespace,
+		analyzers.AnalyzerLargePageSizes,
+		analyzers.AnalyzerTightErrorLoops,
+		analyzers.AnalyzerMissingContext,
+		analyzers.AnalyzerLeakyWatch,
+		analyzers.AnalyzerRestConfigDefaults,
+		analyzers.AnalyzerDynamicOveruse,
+		analyzers.AnalyzerUnstructuredEverywhere,
+		analyzers.AnalyzerWebhookTimeouts,
+		analyzers.AnalyzerWebhookNoContext,
+		analyzers.AnalyzerDiscoveryFlood,
+		analyzers.AnalyzerRESTMapperNotCached,
+	)
 }

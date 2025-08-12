@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"golang.org/x/tools/go/analysis"
+	insppass "golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/ast/inspector"
 )
 
 func runUnboundedQueueAnalyzerOnSrc(t *testing.T, src string) []analysis.Diagnostic {
@@ -43,7 +45,7 @@ func runUnboundedQueueAnalyzerOnSrc(t *testing.T, src string) []analysis.Diagnos
 		return true
 	})
 	var diags []analysis.Diagnostic
-	pass := &analysis.Pass{Analyzer: AnalyzerUnboundedQueue, Fset: fset, Files: files, TypesInfo: info, TypesSizes: types.SizesFor("gc", "amd64"), Report: func(d analysis.Diagnostic) { diags = append(diags, d) }, ResultOf: map[*analysis.Analyzer]interface{}{}}
+	pass := &analysis.Pass{Analyzer: AnalyzerUnboundedQueue, Fset: fset, Files: files, TypesInfo: info, TypesSizes: types.SizesFor("gc", "amd64"), Report: func(d analysis.Diagnostic) { diags = append(diags, d) }, ResultOf: map[*analysis.Analyzer]interface{}{insppass.Analyzer: inspector.New(files)}}
 	_, _ = AnalyzerUnboundedQueue.Run(pass)
 	return diags
 }

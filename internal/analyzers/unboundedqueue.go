@@ -5,14 +5,17 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
+	insppass "golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/ast/inspector"
 )
 
 // AnalyzerUnboundedQueue (K8S013) flags usage of workqueue without rate limiting
 // or without max-depth guards.
 var AnalyzerUnboundedQueue = &analysis.Analyzer{
-	Name: "k8s013_unboundedqueue",
-	Doc:  "flags unbounded workqueue usage without rate limiting",
-	Run:  runUnboundedQueue,
+	Name:     "k8s013_unboundedqueue",
+	Doc:      "flags unbounded workqueue usage without rate limiting",
+	Run:      runUnboundedQueue,
+	Requires: []*analysis.Analyzer{insppass.Analyzer},
 }
 
 func runUnboundedQueue(pass *analysis.Pass) (any, error) {
@@ -31,21 +34,15 @@ func runUnboundedQueue(pass *analysis.Pass) (any, error) {
 		}
 		return false
 	}
-	for _, f := range pass.Files {
-		ast.Inspect(f, func(n ast.Node) bool {
-			ce, ok := n.(*ast.CallExpr)
-			if !ok {
-				return true
+	insp := pass.ResultOf[insppass.Analyzer].(*inspector.Inspector)
+	insp.Preorder([]ast.Node{(*ast.CallExpr)(nil)}, func(n ast.Node) {
+		ce := n.(*ast.CallExpr)
+		if obj := pass.TypesInfo.Uses[calleeIdent(ce.Fun)]; obj != nil {
+			if isFromWorkqueue(obj, "New", "NewNamed") {
+				pass.Reportf(ce.Lparen, "Workqueue constructed without a rate limiter; use NewRateLimitingQueue or a RateLimitingInterface")
 			}
-			// Only flag calls that the type-checker resolved to workqueue constructors
-			if obj := pass.TypesInfo.Uses[calleeIdent(ce.Fun)]; obj != nil {
-				if isFromWorkqueue(obj, "New", "NewNamed") {
-					pass.Reportf(ce.Lparen, "Workqueue constructed without a rate limiter; use NewRateLimitingQueue or a RateLimitingInterface")
-				}
-			}
-			return true
-		})
-	}
+		}
+	})
 	return nil, nil
 }
 

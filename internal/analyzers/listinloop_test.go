@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"golang.org/x/tools/go/analysis"
+	insppass "golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/ast/inspector"
 )
 
 func runListInLoopAnalyzerOnSrc(t *testing.T, src string) []analysis.Diagnostic {
@@ -25,7 +27,7 @@ func runListInLoopAnalyzerOnSrc(t *testing.T, src string) []analysis.Diagnostic 
 		t.Fatalf("check: %v", err)
 	}
 	var diags []analysis.Diagnostic
-	pass := &analysis.Pass{Analyzer: AnalyzerListInLoop, Fset: fset, Files: files, TypesInfo: info, TypesSizes: types.SizesFor("gc", "amd64"), Report: func(d analysis.Diagnostic) { diags = append(diags, d) }, ResultOf: map[*analysis.Analyzer]interface{}{}}
+	pass := &analysis.Pass{Analyzer: AnalyzerListInLoop, Fset: fset, Files: files, TypesInfo: info, TypesSizes: types.SizesFor("gc", "amd64"), Report: func(d analysis.Diagnostic) { diags = append(diags, d) }, ResultOf: map[*analysis.Analyzer]interface{}{insppass.Analyzer: inspector.New(files)}}
 	_, err = AnalyzerListInLoop.Run(pass)
 	if err != nil {
 		t.Fatalf("run: %v", err)

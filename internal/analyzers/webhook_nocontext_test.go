@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"golang.org/x/tools/go/analysis"
+	insppass "golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/ast/inspector"
 )
 
 func runWebhookNoContextAnalyzerOnSrc(t *testing.T, src string) []analysis.Diagnostic {
@@ -21,8 +23,20 @@ func runWebhookNoContextAnalyzerOnSrc(t *testing.T, src string) []analysis.Diagn
 	info := &types.Info{Types: map[ast.Expr]types.TypeAndValue{}, Defs: map[*ast.Ident]types.Object{}, Uses: map[*ast.Ident]types.Object{}, Selections: map[*ast.SelectorExpr]*types.Selection{}}
 	var conf types.Config
 	_, _ = conf.Check("p", fset, files, info)
+	// Spoof context.Background symbol resolution
+	ast.Inspect(f, func(n ast.Node) bool {
+		if ce, ok := n.(*ast.CallExpr); ok {
+			if sel, ok := ce.Fun.(*ast.SelectorExpr); ok && sel.Sel != nil {
+				if sel.Sel.Name == "Background" || sel.Sel.Name == "TODO" {
+					pkg := types.NewPackage("context", "context")
+					info.Uses[sel.Sel] = types.NewFunc(token.NoPos, pkg, sel.Sel.Name, nil)
+				}
+			}
+		}
+		return true
+	})
 	var diags []analysis.Diagnostic
-	pass := &analysis.Pass{Analyzer: AnalyzerWebhookNoContext, Fset: fset, Files: files, TypesInfo: info, TypesSizes: types.SizesFor("gc", "amd64"), Report: func(d analysis.Diagnostic) { diags = append(diags, d) }, ResultOf: map[*analysis.Analyzer]interface{}{}}
+	pass := &analysis.Pass{Analyzer: AnalyzerWebhookNoContext, Fset: fset, Files: files, TypesInfo: info, TypesSizes: types.SizesFor("gc", "amd64"), Report: func(d analysis.Diagnostic) { diags = append(diags, d) }, ResultOf: map[*analysis.Analyzer]interface{}{insppass.Analyzer: inspector.New(files)}}
 	_, _ = AnalyzerWebhookNoContext.Run(pass)
 	return diags
 }

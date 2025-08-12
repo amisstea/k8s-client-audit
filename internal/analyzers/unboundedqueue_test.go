@@ -21,32 +21,60 @@ func runUnboundedQueueAnalyzerOnSrc(t *testing.T, src string) []analysis.Diagnos
 	info := &types.Info{Types: map[ast.Expr]types.TypeAndValue{}, Defs: map[*ast.Ident]types.Object{}, Uses: map[*ast.Ident]types.Object{}, Selections: map[*ast.SelectorExpr]*types.Selection{}}
 	var conf types.Config
 	_, _ = conf.Check("p", fset, files, info)
+	// Spoof workqueue and ratelimiter symbols to proper packages so analyzer type checks pass
+	pkgWQ := types.NewPackage("k8s.io/client-go/util/workqueue", "workqueue")
+	pkgWQR := types.NewPackage("k8s.io/client-go/util/workqueue", "workqueue")
+	ast.Inspect(f, func(n ast.Node) bool {
+		if ce, ok := n.(*ast.CallExpr); ok {
+			switch fun := ce.Fun.(type) {
+			case *ast.Ident:
+				// do not map bare identifiers; only selector-based calls to workqueue are recognized
+			case *ast.SelectorExpr:
+				if fun.Sel != nil {
+					switch fun.Sel.Name {
+					case "New", "NewNamed":
+						info.Uses[fun.Sel] = types.NewFunc(token.NoPos, pkgWQ, fun.Sel.Name, nil)
+					case "NewItemExponentialFailureRateLimiter", "NewItemFastSlowRateLimiter", "NewMaxOfRateLimiter", "NewWithMaxWaitRateLimiter":
+						info.Uses[fun.Sel] = types.NewFunc(token.NoPos, pkgWQR, fun.Sel.Name, nil)
+					}
+				}
+			}
+		}
+		return true
+	})
 	var diags []analysis.Diagnostic
 	pass := &analysis.Pass{Analyzer: AnalyzerUnboundedQueue, Fset: fset, Files: files, TypesInfo: info, TypesSizes: types.SizesFor("gc", "amd64"), Report: func(d analysis.Diagnostic) { diags = append(diags, d) }, ResultOf: map[*analysis.Analyzer]interface{}{}}
 	_, _ = AnalyzerUnboundedQueue.Run(pass)
 	return diags
 }
 
-func TestUnboundedQueue_NewWithoutRateLimiter_Flagged(t *testing.T) {
+func TestUnboundedQueue_WorkqueueNew_Flagged(t *testing.T) {
 	src := `package a
-type Q interface{}
-func New() Q { return nil }
-func f(){ _ = New() }`
+import wq "k8s.io/client-go/util/workqueue"
+func f(){ _ = wq.New() }`
 	diags := runUnboundedQueueAnalyzerOnSrc(t, src)
 	if len(diags) == 0 {
-		t.Fatalf("expected diagnostic for New queue without ratelimiter")
+		t.Fatalf("expected diagnostic for workqueue.New without rate limiter")
 	}
 }
 
-func TestUnboundedQueue_WithRateLimiter_NoDiag(t *testing.T) {
+func TestUnboundedQueue_RateLimitingQueue_NoDiag(t *testing.T) {
 	src := `package a
-type RL interface{}
-func NewItemExponentialFailureRateLimiter() RL { return nil }
-type Q interface{}
-func NewNamed() Q { return nil }
-func f(){ _ = NewItemExponentialFailureRateLimiter(); _ = NewNamed() }`
+import wq "k8s.io/client-go/util/workqueue"
+func NewItemExponentialFailureRateLimiter() any { return nil }
+func f(){ rl := NewItemExponentialFailureRateLimiter(); _ = wq.NewRateLimitingQueue(rl) }`
 	diags := runUnboundedQueueAnalyzerOnSrc(t, src)
 	if len(diags) != 0 {
-		t.Fatalf("did not expect diagnostic when rate limiter is present")
+		t.Fatalf("did not expect diagnostic for NewRateLimitingQueue")
+	}
+}
+
+func TestUnboundedQueue_NonWorkqueue_New_NoDiag(t *testing.T) {
+	src := `package a
+func New() any { return nil }
+func f(){ _ = New() }`
+	diags := runUnboundedQueueAnalyzerOnSrc(t, src)
+	if len(diags) != 0 {
+		t.Fatalf("did not expect diagnostic for non-workqueue New")
 	}
 }

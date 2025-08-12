@@ -2,6 +2,7 @@ package analyzers
 
 import (
 	"go/ast"
+	"go/types"
 
 	"golang.org/x/tools/go/analysis"
 )
@@ -15,28 +16,20 @@ var AnalyzerUnboundedQueue = &analysis.Analyzer{
 }
 
 func runUnboundedQueue(pass *analysis.Pass) (any, error) {
-	hasRateLimiter := false
-	// detect NewItemFastSlowRateLimiter/NewItemExponentialFailureRateLimiter etc.
-	for _, f := range pass.Files {
-		ast.Inspect(f, func(n ast.Node) bool {
-			ce, ok := n.(*ast.CallExpr)
-			if !ok {
+	isFromWorkqueue := func(obj types.Object, names ...string) bool {
+		if obj == nil || obj.Pkg() == nil {
+			return false
+		}
+		if obj.Pkg().Path() != "k8s.io/client-go/util/workqueue" {
+			return false
+		}
+		on := obj.Name()
+		for _, n := range names {
+			if on == n {
 				return true
 			}
-			if sel, ok := ce.Fun.(*ast.SelectorExpr); ok && sel.Sel != nil {
-				switch sel.Sel.Name {
-				case "NewItemExponentialFailureRateLimiter", "NewItemFastSlowRateLimiter", "NewMaxOfRateLimiter", "NewWithMaxWaitRateLimiter":
-					hasRateLimiter = true
-				}
-			}
-			if id, ok := ce.Fun.(*ast.Ident); ok {
-				switch id.Name {
-				case "NewItemExponentialFailureRateLimiter", "NewItemFastSlowRateLimiter", "NewMaxOfRateLimiter", "NewWithMaxWaitRateLimiter":
-					hasRateLimiter = true
-				}
-			}
-			return true
-		})
+		}
+		return false
 	}
 	for _, f := range pass.Files {
 		ast.Inspect(f, func(n ast.Node) bool {
@@ -44,23 +37,26 @@ func runUnboundedQueue(pass *analysis.Pass) (any, error) {
 			if !ok {
 				return true
 			}
-			if sel, ok := ce.Fun.(*ast.SelectorExpr); ok && sel.Sel != nil {
-				if sel.Sel.Name == "NewNamed" || sel.Sel.Name == "New" {
-					// Rough heuristic: if queue constructed and no rate limiter observed in package, warn
-					if !hasRateLimiter {
-						pass.Reportf(sel.Sel.Pos(), "Workqueue constructed without a rate limiter; use workqueue.RateLimitingInterface")
-					}
-				}
-			}
-			if id, ok := ce.Fun.(*ast.Ident); ok {
-				if id.Name == "NewNamed" || id.Name == "New" {
-					if !hasRateLimiter {
-						pass.Reportf(id.Pos(), "Workqueue constructed without a rate limiter; use workqueue.RateLimitingInterface")
-					}
+			// Only flag calls that the type-checker resolved to workqueue constructors
+			if obj := pass.TypesInfo.Uses[calleeIdent(ce.Fun)]; obj != nil {
+				if isFromWorkqueue(obj, "New", "NewNamed") {
+					pass.Reportf(ce.Lparen, "Workqueue constructed without a rate limiter; use NewRateLimitingQueue or a RateLimitingInterface")
 				}
 			}
 			return true
 		})
 	}
 	return nil, nil
+}
+
+func calleeIdent(expr ast.Expr) *ast.Ident {
+	switch x := expr.(type) {
+	case *ast.Ident:
+		return x
+	case *ast.SelectorExpr:
+		if x.Sel != nil {
+			return x.Sel
+		}
+	}
+	return nil
 }

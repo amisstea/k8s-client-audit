@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"golang.org/x/tools/go/analysis"
+	insppass "golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/ast/inspector"
 )
 
 func runExcessiveConfigAnalyzerOnSrc(t *testing.T, src string) []analysis.Diagnostic {
@@ -21,6 +23,25 @@ func runExcessiveConfigAnalyzerOnSrc(t *testing.T, src string) []analysis.Diagno
 	info := &types.Info{Types: map[ast.Expr]types.TypeAndValue{}, Defs: map[*ast.Ident]types.Object{}, Uses: map[*ast.Ident]types.Object{}, Selections: map[*ast.SelectorExpr]*types.Selection{}}
 	var conf types.Config
 	_, _ = conf.Check("p", fset, files, info)
+	// Spoof client constructor funcs to expected package paths for type-based detection
+	pkgKube := types.NewPackage("k8s.io/client-go/kubernetes", "kubernetes")
+	ast.Inspect(f, func(n ast.Node) bool {
+		ce, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		switch fun := ce.Fun.(type) {
+		case *ast.Ident:
+			if fun.Name == "NewForConfig" {
+				info.Uses[fun] = types.NewFunc(token.NoPos, pkgKube, "NewForConfig", nil)
+			}
+		case *ast.SelectorExpr:
+			if fun.Sel != nil && fun.Sel.Name == "NewForConfig" {
+				info.Uses[fun.Sel] = types.NewFunc(token.NoPos, pkgKube, "NewForConfig", nil)
+			}
+		}
+		return true
+	})
 	// Spoof Reconcile signature for hot-path detection
 	ast.Inspect(f, func(n ast.Node) bool {
 		fd, ok := n.(*ast.FuncDecl)
@@ -38,7 +59,7 @@ func runExcessiveConfigAnalyzerOnSrc(t *testing.T, src string) []analysis.Diagno
 		return false
 	})
 	var diags []analysis.Diagnostic
-	pass := &analysis.Pass{Analyzer: AnalyzerExcessiveConfig, Fset: fset, Files: files, TypesInfo: info, TypesSizes: types.SizesFor("gc", "amd64"), Report: func(d analysis.Diagnostic) { diags = append(diags, d) }, ResultOf: map[*analysis.Analyzer]interface{}{}}
+	pass := &analysis.Pass{Analyzer: AnalyzerExcessiveConfig, Fset: fset, Files: files, TypesInfo: info, TypesSizes: types.SizesFor("gc", "amd64"), Report: func(d analysis.Diagnostic) { diags = append(diags, d) }, ResultOf: map[*analysis.Analyzer]interface{}{insppass.Analyzer: inspector.New(files)}}
 	_, _ = AnalyzerExcessiveConfig.Run(pass)
 	return diags
 }

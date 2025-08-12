@@ -5,60 +5,88 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
+	insppass "golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/ast/inspector"
 )
 
 // AnalyzerExcessiveConfig flags repeated creation of rest.Config/clients in hot paths.
 var AnalyzerExcessiveConfig = &analysis.Analyzer{
-	Name: "k8s003_excessiveconfig",
-	Doc:  "flags repeated rest.Config or client creation in loops or hot paths",
-	Run:  runExcessiveConfig,
+	Name:     "k8s003_excessiveconfig",
+	Doc:      "flags repeated rest.Config or client creation in loops or hot paths",
+	Run:      runExcessiveConfig,
+	Requires: []*analysis.Analyzer{insppass.Analyzer},
 }
 
 func runExcessiveConfig(pass *analysis.Pass) (any, error) {
+	insp := pass.ResultOf[insppass.Analyzer].(*inspector.Inspector)
+	// Determine if a call expression constructs a K8s client by checking the
+	// fully-qualified package path and function name via type information.
 	isClientCtor := func(call *ast.CallExpr) bool {
-		switch fun := call.Fun.(type) {
-		case *ast.SelectorExpr:
-			if fun.Sel == nil {
+		isKnownCtor := func(obj types.Object) bool {
+			if obj == nil || obj.Pkg() == nil {
 				return false
 			}
-			method := fun.Sel.Name
-			if method == "NewForConfig" || method == "NewForConfigOrDie" || method == "RESTClientFor" || method == "New" {
-				return true
+			pkg := obj.Pkg().Path()
+			name := obj.Name()
+			switch pkg {
+			case "k8s.io/client-go/kubernetes":
+				return name == "NewForConfig" || name == "NewForConfigOrDie"
+			case "k8s.io/client-go/dynamic":
+				return name == "NewForConfig"
+			case "k8s.io/client-go/rest":
+				return name == "RESTClientFor"
+			case "sigs.k8s.io/controller-runtime/pkg/client":
+				return name == "New"
+			default:
+				return false
+			}
+		}
+		switch fun := call.Fun.(type) {
+		case *ast.SelectorExpr:
+			if fun.Sel != nil {
+				if obj := pass.TypesInfo.Uses[fun.Sel]; isKnownCtor(obj) {
+					return true
+				}
 			}
 		case *ast.Ident:
-			// allow direct calls to NewForConfig in tests
-			if fun.Name == "NewForConfig" || fun.Name == "RESTClientFor" || fun.Name == "New" {
+			if obj := pass.TypesInfo.Uses[fun]; isKnownCtor(obj) {
 				return true
 			}
 		}
 		return false
 	}
-	for _, f := range pass.Files {
-		ast.Inspect(f, func(n ast.Node) bool {
-			fd, ok := n.(*ast.FuncDecl)
-			if !ok || fd.Body == nil {
+
+	var currentFunc *ast.FuncDecl
+	loopDepth := 0
+	nodes := []ast.Node{(*ast.FuncDecl)(nil), (*ast.ForStmt)(nil), (*ast.RangeStmt)(nil), (*ast.CallExpr)(nil)}
+	insp.Nodes(nodes, func(n ast.Node, push bool) bool {
+		switch node := n.(type) {
+		case *ast.FuncDecl:
+			if push {
+				currentFunc = node
+			} else {
+				currentFunc = nil
+			}
+		case *ast.ForStmt, *ast.RangeStmt:
+			if push {
+				loopDepth++
+			} else {
+				loopDepth--
+			}
+		case *ast.CallExpr:
+			if !push {
 				return true
 			}
-			ast.Inspect(fd.Body, func(n2 ast.Node) bool {
-				switch x := n2.(type) {
-				case *ast.ForStmt, *ast.RangeStmt:
-					ast.Inspect(n2, func(nn ast.Node) bool {
-						if call, ok := nn.(*ast.CallExpr); ok && isClientCtor(call) {
-							pass.Reportf(call.Pos(), "client constructed inside loop; create once and reuse")
-							return false
-						}
-						return true
-					})
-				case *ast.CallExpr:
-					if isClientCtor(x) && isHotPath(pass, fd) {
-						pass.Reportf(x.Pos(), "client constructed in hot path; create once and reuse")
-					}
+			if isClientCtor(node) {
+				if loopDepth > 0 {
+					pass.Reportf(node.Pos(), "client constructed inside loop; create once and reuse")
+				} else if currentFunc != nil && isHotPath(pass, currentFunc) {
+					pass.Reportf(node.Pos(), "client constructed in hot path; create once and reuse")
 				}
-				return true
-			})
-			return true
-		})
-	}
+			}
+		}
+		return true
+	})
 	return nil, nil
 }
 

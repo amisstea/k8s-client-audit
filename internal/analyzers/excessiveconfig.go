@@ -2,6 +2,7 @@ package analyzers
 
 import (
 	"go/ast"
+	"go/types"
 
 	"golang.org/x/tools/go/analysis"
 )
@@ -49,7 +50,7 @@ func runExcessiveConfig(pass *analysis.Pass) (any, error) {
 						return true
 					})
 				case *ast.CallExpr:
-					if isClientCtor(x) && isHotPath(fd) {
+					if isClientCtor(x) && isHotPath(pass, fd) {
 						pass.Reportf(x.Pos(), "client constructed in hot path; create once and reuse")
 					}
 				}
@@ -61,61 +62,48 @@ func runExcessiveConfig(pass *analysis.Pass) (any, error) {
 	return nil, nil
 }
 
-func isHotPath(fd *ast.FuncDecl) bool {
+func isHotPath(pass *analysis.Pass, fd *ast.FuncDecl) bool {
 	if fd == nil {
 		return false
 	}
-	name := fd.Name.Name
-	lname := lower(name)
-	if contains(lower(recvType(fd)), "reconcil") || contains(lower(recvType(fd)), "controller") {
-		return true
+	obj := pass.TypesInfo.Defs[fd.Name]
+	sig, ok := obj.Type().(*types.Signature)
+	if !ok {
+		return false
 	}
-	switch lname {
-	case "reconcile", "servehttp", "handle", "process", "sync", "worker", "run":
-		return true
+	// Detect HTTP handlers: ServeHTTP(http.ResponseWriter, *http.Request)
+	if fd.Name.Name == "ServeHTTP" {
+		params := sig.Params()
+		if params.Len() == 2 {
+			if isNamed(params.At(0).Type(), "net/http", "ResponseWriter") && isNamed(deref(params.At(1).Type()), "net/http", "Request") {
+				return true
+			}
+		}
 	}
-	if contains(lname, "reconcil") || contains(lname, "handler") || contains(lname, "loop") {
-		return true
+	// Detect controller-runtime reconcilers: Reconcile(...) (reconcile.Result, error)
+	if fd.Name.Name == "Reconcile" {
+		results := sig.Results()
+		if results.Len() >= 1 {
+			if isNamed(deref(results.At(0).Type()), "sigs.k8s.io/controller-runtime/pkg/reconcile", "Result") {
+				return true
+			}
+		}
 	}
 	return false
 }
 
-func recvType(fd *ast.FuncDecl) string {
-	if fd.Recv == nil || len(fd.Recv.List) == 0 {
-		return ""
+func deref(t types.Type) types.Type {
+	if p, ok := t.(*types.Pointer); ok {
+		return p.Elem()
 	}
-	switch t := fd.Recv.List[0].Type.(type) {
-	case *ast.Ident:
-		return t.Name
-	case *ast.StarExpr:
-		if id, ok := t.X.(*ast.Ident); ok {
-			return id.Name
-		}
-	}
-	return ""
+	return t
 }
 
-func lower(s string) string {
-	b := []rune(s)
-	for i, r := range b {
-		if 'A' <= r && r <= 'Z' {
-			b[i] = r + ('a' - 'A')
+func isNamed(t types.Type, pkgPath, name string) bool {
+	if n, ok := t.(*types.Named); ok {
+		if n.Obj() != nil && n.Obj().Pkg() != nil {
+			return n.Obj().Pkg().Path() == pkgPath && n.Obj().Name() == name
 		}
 	}
-	return string(b)
-}
-func contains(s, sub string) bool {
-	return len(sub) == 0 || (len(s) >= len(sub) && indexOf(s, sub) >= 0)
-}
-func indexOf(s, sub string) int {
-	n, m := len(s), len(sub)
-	if m == 0 {
-		return 0
-	}
-	for i := 0; i+m <= n; i++ {
-		if s[i:i+m] == sub {
-			return i
-		}
-	}
-	return -1
+	return false
 }

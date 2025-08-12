@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"golang.org/x/tools/go/analysis"
+	insppass "golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/ast/inspector"
 )
 
 func runUnstructuredEverywhereAnalyzerOnSrc(t *testing.T, src string) []analysis.Diagnostic {
@@ -22,7 +24,7 @@ func runUnstructuredEverywhereAnalyzerOnSrc(t *testing.T, src string) []analysis
 	var conf types.Config
 	_, _ = conf.Check("p", fset, files, info)
 	var diags []analysis.Diagnostic
-	pass := &analysis.Pass{Analyzer: AnalyzerUnstructuredEverywhere, Fset: fset, Files: files, TypesInfo: info, TypesSizes: types.SizesFor("gc", "amd64"), Report: func(d analysis.Diagnostic) { diags = append(diags, d) }, ResultOf: map[*analysis.Analyzer]interface{}{}}
+	pass := &analysis.Pass{Analyzer: AnalyzerUnstructuredEverywhere, Fset: fset, Files: files, TypesInfo: info, TypesSizes: types.SizesFor("gc", "amd64"), Report: func(d analysis.Diagnostic) { diags = append(diags, d) }, ResultOf: map[*analysis.Analyzer]interface{}{insppass.Analyzer: inspector.New(files)}}
 	_, _ = AnalyzerUnstructuredEverywhere.Run(pass)
 	return diags
 }

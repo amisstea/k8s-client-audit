@@ -6,7 +6,7 @@ import (
 	"go/types"
 	"testing"
 
-	"cursor-experiment/internal/analyzers/testutil"
+	"github.com/amisstea/k8s-client-audit/internal/analyzers/testutil"
 
 	"golang.org/x/tools/go/analysis"
 )

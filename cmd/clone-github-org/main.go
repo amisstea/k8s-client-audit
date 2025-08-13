@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"cursor-experiment/internal/githubclient"
-	"cursor-experiment/internal/gitutil"
 	"errors"
 	"flag"
 	"fmt"
@@ -12,6 +10,9 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	githubclient "github.com/amisstea/k8s-client-audit/internal/githubclient"
+	gitutil "github.com/amisstea/k8s-client-audit/internal/gitutil"
 )
 
 type Options struct {

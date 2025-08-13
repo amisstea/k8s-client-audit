@@ -1,4 +1,4 @@
-module cursor-experiment
+module github.com/amisstea/k8s-client-audit
 
 go 1.24.5
 

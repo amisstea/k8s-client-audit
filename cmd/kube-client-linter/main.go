@@ -1,7 +1,7 @@
 package main
 
 import (
-	"cursor-experiment/internal/analyzers"
+	analyzers "github.com/amisstea/k8s-client-audit/internal/analyzers"
 
 	"golang.org/x/tools/go/analysis/multichecker"
 )

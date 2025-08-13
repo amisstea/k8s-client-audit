@@ -24,7 +24,7 @@ func main() {
 		analyzers.AnalyzerRestConfigDefaults,
 		analyzers.AnalyzerDynamicOveruse,
 		analyzers.AnalyzerUnstructuredEverywhere,
-		analyzers.AnalyzerWebhookTimeouts,
+		// analyzers.AnalyzerWebhookTimeouts,
 		analyzers.AnalyzerWebhookNoContext,
 		analyzers.AnalyzerDiscoveryFlood,
 		analyzers.AnalyzerRESTMapperNotCached,

@@ -8,7 +8,7 @@ import (
 
 // AnalyzerMissingContext flags client calls that pass context.Background/TODO instead of a propagated context.
 var AnalyzerMissingContext = &analysis.Analyzer{
-	Name: "k8s041_missingcontext",
+	Name: "missingcontext",
 	Doc:  "flags client calls using context.Background/TODO instead of propagated context",
 	Run:  runMissingContext,
 }

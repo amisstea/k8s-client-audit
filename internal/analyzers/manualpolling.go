@@ -6,10 +6,10 @@ import (
 	"golang.org/x/tools/go/analysis"
 )
 
-// AnalyzerManualPolling (K8S012) flags loops that poll with List + sleep/ticker
+// AnalyzerManualPolling flags loops that poll with List + sleep/ticker
 // instead of using watches/informers.
 var AnalyzerManualPolling = &analysis.Analyzer{
-	Name: "k8s012_manualpolling",
+	Name: "manualpolling",
 	Doc:  "flags manual polling loops using List with sleep/ticker",
 	Run:  runManualPolling,
 }

@@ -11,7 +11,7 @@ import (
 
 // AnalyzerExcessiveConfig flags repeated creation of rest.Config/clients in hot paths.
 var AnalyzerExcessiveConfig = &analysis.Analyzer{
-	Name:     "k8s003_excessiveconfig",
+	Name:     "excessiveconfig",
 	Doc:      "flags repeated rest.Config or client creation in loops or hot paths",
 	Run:      runExcessiveConfig,
 	Requires: []*analysis.Analyzer{insppass.Analyzer},

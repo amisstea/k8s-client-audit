@@ -6,11 +6,11 @@ import (
 	"golang.org/x/tools/go/analysis"
 )
 
-// AnalyzerMissingInformer (K8S010) flags direct client-go Watch calls in packages
+// AnalyzerMissingInformer flags direct client-go Watch calls in packages
 // that do not appear to use shared informers/caches. Prefer shared informers to
 // reduce API server load and improve efficiency.
 var AnalyzerMissingInformer = &analysis.Analyzer{
-	Name: "k8s010_missinginformer",
+	Name: "missinginformer",
 	Doc:  "flags direct Watch calls when no SharedInformer is used",
 	Run:  runMissingInformer,
 }

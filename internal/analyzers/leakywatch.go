@@ -6,10 +6,10 @@ import (
 	"golang.org/x/tools/go/analysis"
 )
 
-// AnalyzerLeakyWatch (K8S042) flags Watch calls whose ResultChan is obtained but
+// AnalyzerLeakyWatch flags Watch calls whose ResultChan is obtained but
 // not stopped/drained. Heuristic: if a call to Stop/Cancel is not found.
 var AnalyzerLeakyWatch = &analysis.Analyzer{
-	Name: "k8s042_leakywatch",
+	Name: "leakywatch",
 	Doc:  "flags potential leaky watch channels without stop",
 	Run:  runLeakyWatch,
 }

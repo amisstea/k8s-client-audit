@@ -9,10 +9,10 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 )
 
-// AnalyzerUnboundedQueue (K8S013) flags usage of workqueue without rate limiting
+// AnalyzerUnboundedQueue flags usage of workqueue without rate limiting
 // or without max-depth guards.
 var AnalyzerUnboundedQueue = &analysis.Analyzer{
-	Name:     "k8s013_unboundedqueue",
+	Name:     "unboundedqueue",
 	Doc:      "flags unbounded workqueue usage without rate limiting",
 	Run:      runUnboundedQueue,
 	Requires: []*analysis.Analyzer{insppass.Analyzer},

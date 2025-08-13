@@ -11,7 +11,7 @@ import (
 
 // AnalyzerListInLoop flags List/Watch calls inside loops.
 var AnalyzerListInLoop = &analysis.Analyzer{
-	Name:     "k8s011_listinloop",
+	Name:     "listinloop",
 	Doc:      "flags List/Watch calls inside loops (prefer informers/cache)",
 	Run:      runListInLoop,
 	Requires: []*analysis.Analyzer{insppass.Analyzer},

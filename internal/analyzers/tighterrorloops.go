@@ -8,7 +8,7 @@ import (
 
 // AnalyzerTightErrorLoops flags tight retry loops on errors that call the Kubernetes API without any backoff/sleep.
 var AnalyzerTightErrorLoops = &analysis.Analyzer{
-	Name: "k8s032_tighterrorloops",
+	Name: "tighterrorloops",
 	Doc:  "flags tight loops retrying on errors around Kubernetes API calls without backoff",
 	Run:  runTightErrorLoops,
 }

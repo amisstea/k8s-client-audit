@@ -6,10 +6,10 @@ import (
 	"golang.org/x/tools/go/analysis"
 )
 
-// AnalyzerRequeueBackoff (K8S014) flags controller-runtime Reconcile paths that
+// AnalyzerRequeueBackoff flags controller-runtime Reconcile paths that
 // requeue immediately without a backoff (e.g., returning requeue=true without RequeueAfter).
 var AnalyzerRequeueBackoff = &analysis.Analyzer{
-	Name: "k8s014_requeuebackoff",
+	Name: "requeuebackoff",
 	Doc:  "flags requeue without backoff in Reconcile",
 	Run:  runRequeueBackoff,
 }

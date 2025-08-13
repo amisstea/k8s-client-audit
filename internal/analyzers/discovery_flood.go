@@ -8,10 +8,10 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 )
 
-// AnalyzerDiscoveryFlood (K8S070) flags repeated discovery client creations or
+// AnalyzerDiscoveryFlood flags repeated discovery client creations or
 // RESTMapper resets in loops, which can flood the API server.
 var AnalyzerDiscoveryFlood = &analysis.Analyzer{
-	Name:     "k8s070_discoveryflood",
+	Name:     "discoveryflood",
 	Doc:      "flags repeated discovery or RESTMapper rebuilds",
 	Run:      runDiscoveryFlood,
 	Requires: []*analysis.Analyzer{insppass.Analyzer},

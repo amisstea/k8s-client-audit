@@ -8,10 +8,10 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 )
 
-// AnalyzerWebhookTimeouts (K8S060) flags HTTP clients/servers in webhook packages
+// AnalyzerWebhookTimeouts flags HTTP clients/servers in webhook packages
 // missing reasonable timeouts. Heuristic: http.Client{Timeout: 0} or missing; http.Server{Read/WriteTimeout: 0}.
 var AnalyzerWebhookTimeouts = &analysis.Analyzer{
-	Name:     "k8s060_webhook_timeouts",
+	Name:     "webhook_timeouts",
 	Doc:      "flags webhook HTTP client/server without timeouts",
 	Run:      runWebhookTimeouts,
 	Requires: []*analysis.Analyzer{insppass.Analyzer},

@@ -11,7 +11,7 @@ import (
 
 // AnalyzerQPSBurst flags rest.Config.QPS/Burst that are zero/unlimited or extreme.
 var AnalyzerQPSBurst = &analysis.Analyzer{
-	Name: "k8s002_qpsburst",
+	Name: "qpsburst",
 	Doc:  "flags rest.Config QPS/Burst zero or extreme values",
 	Run:  runQPSBurst,
 }

@@ -9,10 +9,10 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 )
 
-// AnalyzerWebhookNoContext (K8S061) flags HTTP handlers that ignore request
+// AnalyzerWebhookNoContext flags HTTP handlers that ignore request
 // context or call Background/TODO for outgoing calls.
 var AnalyzerWebhookNoContext = &analysis.Analyzer{
-	Name:     "k8s061_webhook_nocontext",
+	Name:     "webhook_nocontext",
 	Doc:      "flags webhook handlers that don't use request context",
 	Run:      runWebhookNoContext,
 	Requires: []*analysis.Analyzer{insppass.Analyzer},

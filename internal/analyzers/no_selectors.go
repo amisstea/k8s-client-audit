@@ -9,7 +9,7 @@ import (
 
 // AnalyzerNoSelectors flags List calls without label/field selectors or options.
 var AnalyzerNoSelectors = &analysis.Analyzer{
-	Name: "k8s021_noselectors",
+	Name: "noselectors",
 	Doc:  "flags List calls without label/field selectors",
 	Run:  runNoSelectors,
 }

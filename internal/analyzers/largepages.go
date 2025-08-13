@@ -7,9 +7,9 @@ import (
 	"golang.org/x/tools/go/analysis"
 )
 
-// AnalyzerLargePageSizes (K8S023) flags ListOptions with very large Limit values.
+// AnalyzerLargePageSizes flags ListOptions with very large Limit values.
 var AnalyzerLargePageSizes = &analysis.Analyzer{
-	Name: "k8s023_largepages",
+	Name: "largepages",
 	Doc:  "flags excessively large page sizes in list calls",
 	Run:  runLargePages,
 }

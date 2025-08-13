@@ -6,10 +6,10 @@ import (
 	"golang.org/x/tools/go/analysis"
 )
 
-// AnalyzerExcessiveClusterScope (K8S080) flags ClusterRole/ClusterRoleBinding
+// AnalyzerExcessiveClusterScope flags ClusterRole/ClusterRoleBinding
 // composite literals when Role/RoleBinding would suffice (heuristic).
 var AnalyzerExcessiveClusterScope = &analysis.Analyzer{
-	Name: "k8s080_excessiveclusterscope",
+	Name: "excessiveclusterscope",
 	Doc:  "flags cluster-scoped RBAC where namespace scope may suffice",
 	Run:  runExcessiveClusterScope,
 }
@@ -37,9 +37,9 @@ func runExcessiveClusterScope(pass *analysis.Pass) (any, error) {
 	return nil, nil
 }
 
-// AnalyzerWildcardVerbs (K8S081) flags RBAC policy rules with verbs ["*"]
+// AnalyzerWildcardVerbs flags RBAC policy rules with verbs ["*"]
 var AnalyzerWildcardVerbs = &analysis.Analyzer{
-	Name: "k8s081_wildcardverbs",
+	Name: "wildcardverbs",
 	Doc:  "flags wildcard verbs in RBAC rules",
 	Run:  runWildcardVerbs,
 }

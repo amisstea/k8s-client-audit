@@ -9,10 +9,10 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 )
 
-// AnalyzerNoResync (K8S040) flags informer creations with resync period set to 0
+// AnalyzerNoResync flags informer creations with resync period set to 0
 // where a positive resync might be desirable. Heuristic only.
 var AnalyzerNoResync = &analysis.Analyzer{
-	Name:     "k8s040_noresync",
+	Name:     "noresync",
 	Doc:      "flags informer creation with zero resync period",
 	Run:      runNoResync,
 	Requires: []*analysis.Analyzer{insppass.Analyzer},

@@ -11,7 +11,7 @@ import (
 
 // AnalyzerClientReuse flags creating Kubernetes clients in hot paths or inside loops.
 var AnalyzerClientReuse = &analysis.Analyzer{
-	Name:     "k8s001_clientreuse",
+	Name:     "clientreuse",
 	Doc:      "flags client construction inside loops or hot paths; clients should be reused",
 	Run:      runClientReuse,
 	Requires: []*analysis.Analyzer{insppass.Analyzer},

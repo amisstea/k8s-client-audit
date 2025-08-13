@@ -8,10 +8,10 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 )
 
-// AnalyzerIgnoring429 (K8S030) flags code that checks for HTTP 429 or throttling
+// AnalyzerIgnoring429 flags code that checks for HTTP 429 or throttling
 // but does not back off (e.g., immediately retries with no sleep/backoff).
 var AnalyzerIgnoring429 = &analysis.Analyzer{
-	Name:     "k8s030_ignoring429",
+	Name:     "ignoring429",
 	Doc:      "flags handling of 429 without backoff",
 	Run:      runIgnoring429,
 	Requires: []*analysis.Analyzer{insppass.Analyzer},

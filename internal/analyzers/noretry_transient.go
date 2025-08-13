@@ -6,10 +6,10 @@ import (
 	"golang.org/x/tools/go/analysis"
 )
 
-// AnalyzerNoRetryTransient (K8S031) flags error handling that detects transient
+// AnalyzerNoRetryTransient flags error handling that detects transient
 // network issues but returns immediately without any retry/backoff.
 var AnalyzerNoRetryTransient = &analysis.Analyzer{
-	Name: "k8s031_noretrytransient",
+	Name: "noretrytransient",
 	Doc:  "flags transient errors handled without retry",
 	Run:  runNoRetryTransient,
 }

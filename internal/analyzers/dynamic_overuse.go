@@ -8,10 +8,10 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 )
 
-// AnalyzerDynamicOveruse (K8S051) flags creation of dynamic/unstructured clients
+// AnalyzerDynamicOveruse flags creation of dynamic/unstructured clients
 // when typed clients appear to be available in the same package (heuristic).
 var AnalyzerDynamicOveruse = &analysis.Analyzer{
-	Name:     "k8s051_dynamicoveruse",
+	Name:     "dynamicoveruse",
 	Doc:      "flags overuse of dynamic/unstructured when typed clients exist",
 	Run:      runDynamicOveruse,
 	Requires: []*analysis.Analyzer{insppass.Analyzer},

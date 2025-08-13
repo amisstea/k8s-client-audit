@@ -8,11 +8,11 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 )
 
-// AnalyzerUnstructuredEverywhere (K8S052) flags heavy use of unstructured.Unstructured
+// AnalyzerUnstructuredEverywhere flags heavy use of unstructured.Unstructured
 // in functions that could use typed objects. Heuristic: many composite literals or
 // declarations of Unstructured within a file.
 var AnalyzerUnstructuredEverywhere = &analysis.Analyzer{
-	Name:     "k8s052_unstructuredeverywhere",
+	Name:     "unstructuredeverywhere",
 	Doc:      "flags pervasive use of unstructured objects instead of typed",
 	Run:      runUnstructuredEverywhere,
 	Requires: []*analysis.Analyzer{insppass.Analyzer},

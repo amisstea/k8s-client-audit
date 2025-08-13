@@ -8,11 +8,11 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 )
 
-// AnalyzerRESTMapperNotCached (K8S071) flags use of discovery-based RESTMapper
+// AnalyzerRESTMapperNotCached flags use of discovery-based RESTMapper
 // without caching wrapper. Heuristic: direct NewDiscoveryRESTMapper or NewDeferredDiscoveryRESTMapper
 // without surrounding NewShortcutExpander or cached wrapper elsewhere in package.
 var AnalyzerRESTMapperNotCached = &analysis.Analyzer{
-	Name:     "k8s071_restmapper_not_cached",
+	Name:     "restmapper_not_cached",
 	Doc:      "flags RESTMapper without caching",
 	Run:      runRESTMapperNotCached,
 	Requires: []*analysis.Analyzer{insppass.Analyzer},

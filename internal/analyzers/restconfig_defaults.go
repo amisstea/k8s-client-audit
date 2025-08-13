@@ -9,10 +9,10 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 )
 
-// AnalyzerRestConfigDefaults (K8S050) flags rest.Config creations missing
+// AnalyzerRestConfigDefaults flags rest.Config creations missing
 // timeouts or user-agent.
 var AnalyzerRestConfigDefaults = &analysis.Analyzer{
-	Name:     "k8s050_restconfigdefaults",
+	Name:     "restconfigdefaults",
 	Doc:      "flags rest.Config initialization without timeouts or UserAgent",
 	Run:      runRestConfigDefaults,
 	Requires: []*analysis.Analyzer{inspect.Analyzer},

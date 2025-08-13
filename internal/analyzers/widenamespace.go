@@ -8,7 +8,7 @@ import (
 
 // AnalyzerWideNamespace flags all-namespaces listing heuristics like InNamespace("") or typed Pods("").List.
 var AnalyzerWideNamespace = &analysis.Analyzer{
-	Name: "k8s022_widenamespace",
+	Name: "widenamespace",
 	Doc:  "flags cluster-wide scans when namespace-scoped suffices",
 	Run:  runWideNamespace,
 }

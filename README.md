@@ -48,7 +48,7 @@ An optional wrapper script is available in `scripts/`:
 Build the linter:
 
 ```bash
-go build -o kube-client-linter ./cmd/k8s-client-audit
+go build -o k8s-client-audit ./cmd/k8s-client-audit
 ```
 
 Build the GitHub org cloner (optional):
@@ -62,19 +62,19 @@ go build -o clone-github-org ./cmd/clone-github-org
 Run the linter in the current module:
 
 ```bash
-./kube-client-linter ./...
+./k8s-client-audit ./...
 ```
 
 Run the linter excluding tests:
 
 ```bash
-./kube-client-linter -test=false ./...
+./k8s-client-audit -test=false ./...
 ```
 
 Get linter help:
 
 ```bash
-./kube-client-linter -h
+./k8s-client-audit -h
 ```
 
 Run the GitHub org cloner (optional):
@@ -101,9 +101,9 @@ Run the wrapper script over many repos/modules (optional):
 
 Notes for the wrapper:
 
-- Expects `kube-client-linter` to be in `PATH`
+- Expects `k8s-client-audit` to be in `PATH`
 - Argument defaults to `sources` if omitted
-- Recursively discovers `go.mod` files (excluding vendor) and runs `kube-client-linter -test=false ./...` in each module
+- Recursively discovers `go.mod` files (excluding vendor) and runs `k8s-client-audit -test=false ./...` in each module
 
 ### Help and flags
 

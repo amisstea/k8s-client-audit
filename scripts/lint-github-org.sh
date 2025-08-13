@@ -3,8 +3,8 @@ set -uo pipefail
 
 ROOT_DIR=${1:-sources}
 
-if ! command -v kube-client-linter >/dev/null 2>&1; then
-  echo "❌ ERROR: kube-client-linter not found in PATH. Build/install it first." >&2
+if ! command -v k8s-client-audit >/dev/null 2>&1; then
+  echo "❌ ERROR: k8s-client-audit not found in PATH. Build/install it first." >&2
   exit 1
 fi
 
@@ -21,7 +21,7 @@ while IFS= read -r gomod; do
   moddir=$(dirname "$gomod")
   echo "🧩 Analyzing module: $moddir"
   pushd "$moddir" >/dev/null
-  kube-client-linter -test=false ./...
+  k8s-client-audit -test=false ./...
   popd >/dev/null
 done <<< $modules
 

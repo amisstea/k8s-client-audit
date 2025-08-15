@@ -25,10 +25,8 @@ All analyzers live under `internal/analyzers`. The following are currently wired
 - restconfigdefaults: flags `rest.Config` initialization missing timeouts or UserAgent
 - dynamicoveruse: flags use of dynamic/unstructured clients when typed clients appear available
 - unstructuredeverywhere: flags pervasive use of `unstructured.Unstructured` rather than typed objects
-- webhook_nocontext: flags webhook handlers that use `context.Background/TODO` instead of request context
 - discoveryflood: flags repeated discovery/RESTMapper creations inside loops
 - restmapper_not_cached: flags creation of discovery-based RESTMapper without a caching wrapper
-- webhook_timeouts: flags webhook HTTP clients/servers without timeouts — disabled by default (not registered in `cmd/k8s-client-audit/main.go`)
 
 Note: Analyzer names above match the `analysis.Analyzer.Name` used in output.
 

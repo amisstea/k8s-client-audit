@@ -122,6 +122,8 @@ func runNoSelectors(pass *analysis.Pass) (any, error) {
 										hasLabel = true
 									case "MatchingFields", "MatchingFieldsSelector":
 										hasField = true
+									case "HasLabels":
+										hasLabel = true
 									}
 								}
 								if id, ok := x.Fun.(*ast.Ident); ok {
@@ -130,6 +132,8 @@ func runNoSelectors(pass *analysis.Pass) (any, error) {
 										hasLabel = true
 									case "MatchingFields", "MatchingFieldsSelector":
 										hasField = true
+									case "HasLabels":
+										hasLabel = true
 									}
 								}
 							case *ast.Ident:
@@ -214,6 +218,8 @@ func runNoSelectors(pass *analysis.Pass) (any, error) {
 									hasLabel = true
 								} else if typeName == "MatchingFields" {
 									hasField = true
+								} else if typeName == "HasLabels" {
+									hasLabel = true
 								}
 							case *ast.UnaryExpr:
 								// support &ListOptions{...} and &identifier
@@ -245,6 +251,8 @@ func runNoSelectors(pass *analysis.Pass) (any, error) {
 											hasLabel = true
 										} else if typeName == "MatchingFields" {
 											hasField = true
+										} else if typeName == "HasLabels" {
+											hasLabel = true
 										}
 									} else if id, ok := x.X.(*ast.Ident); ok {
 										// Handle &identifier case - resolve the identifier
@@ -277,6 +285,8 @@ func runNoSelectors(pass *analysis.Pass) (any, error) {
 													hasLabel = true
 												} else if typeName == "MatchingFields" {
 													hasField = true
+												} else if typeName == "HasLabels" {
+													hasLabel = true
 												}
 											}
 										} else {

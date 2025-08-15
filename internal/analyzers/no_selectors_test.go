@@ -202,3 +202,37 @@ func f(c Client){
 		t.Fatalf("expected diagnostic when ListOptions variable has no selectors")
 	}
 }
+
+func TestNoSelectors_ControllerRuntime_HasLabels_NoDiag(t *testing.T) {
+	src := `package a
+type Opts interface{}
+type Client interface{ List(ctx any, obj any, opts ...Opts) error }
+type HasLabels []string
+type clientPkg struct{}
+var client clientPkg
+func f(c Client){
+	var o struct{}
+	_ = c.List(nil, &o, HasLabels{"app"})
+}`
+	diags := runNoSelectorsAnalyzerOnSrc(t, src)
+	if len(diags) != 0 {
+		t.Fatalf("did not expect diagnostic when HasLabels is used")
+	}
+}
+
+func TestNoSelectors_ControllerRuntime_ClientHasLabels_NoDiag(t *testing.T) {
+	src := `package a
+type Opts interface{}
+type Client interface{ List(ctx any, obj any, opts ...Opts) error }
+type HasLabels []string
+type clientPkg struct{}
+var client clientPkg
+func f(c Client){
+	var o struct{}
+	_ = c.List(nil, &o, client.HasLabels{"app", "env"})
+}`
+	diags := runNoSelectorsAnalyzerOnSrc(t, src)
+	if len(diags) != 0 {
+		t.Fatalf("did not expect diagnostic when client.HasLabels is used")
+	}
+}

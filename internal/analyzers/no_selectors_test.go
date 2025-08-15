@@ -101,3 +101,104 @@ func f(c Client){ var o struct{}; opts := &ListOptions{ Namespace: "ns" }; _ = c
 		t.Fatalf("expected diagnostic when ident options lack selectors")
 	}
 }
+
+func TestNoSelectors_ControllerRuntime_ClientListOption_MatchingLabels_NoDiag(t *testing.T) {
+	src := `package a
+type Opts interface{}
+type Client interface{ List(ctx any, obj any, opts ...Opts) error }
+type MatchingLabels map[string]string
+type clientPkg struct{}
+func (c clientPkg) ListOption(opt any) Opts { return nil }
+func (c clientPkg) InNamespace(ns string) Opts { return nil }
+var client clientPkg
+func f(c Client){
+	var o struct{}
+	opts := client.ListOption(&MatchingLabels{"app": "test"})
+	_ = c.List(nil, &o, client.InNamespace("default"), opts)
+}`
+	diags := runNoSelectorsAnalyzerOnSrc(t, src)
+	if len(diags) != 0 {
+		t.Fatalf("did not expect diagnostic when opts created with MatchingLabels via ListOption function")
+	}
+}
+
+func TestNoSelectors_ControllerRuntime_DirectMatchingLabels_NoDiag(t *testing.T) {
+	src := `package a
+type Opts interface{}
+type Client interface{ List(ctx any, obj any, opts ...Opts) error }
+type MatchingLabels map[string]string
+type clientPkg struct{}
+func (c clientPkg) InNamespace(ns string) Opts { return nil }
+var client clientPkg
+func f(c Client){
+	var o struct{}
+	opts := &MatchingLabels{"app": "test"}
+	_ = c.List(nil, &o, client.InNamespace("default"), opts)
+}`
+	diags := runNoSelectorsAnalyzerOnSrc(t, src)
+	if len(diags) != 0 {
+		t.Fatalf("did not expect diagnostic when opts is directly a MatchingLabels")
+	}
+}
+
+func TestNoSelectors_ControllerRuntime_ListOptionsVariable_WithLabelSelector_NoDiag(t *testing.T) {
+	src := `package a
+type Opts interface{}
+type Client interface{ List(ctx any, obj any, opts ...Opts) error }
+type ListOptions struct{ LabelSelector, FieldSelector, Namespace any }
+type clientPkg struct{}
+var client clientPkg
+func f(c Client){
+	var o struct{}
+	listOpts := ListOptions{
+		LabelSelector: "app=test",
+		Namespace:     "default",
+	}
+	_ = c.List(nil, &o, &listOpts)
+}`
+	diags := runNoSelectorsAnalyzerOnSrc(t, src)
+	if len(diags) != 0 {
+		t.Fatalf("did not expect diagnostic when ListOptions variable has LabelSelector set")
+	}
+}
+
+func TestNoSelectors_ControllerRuntime_ListOptionsVariable_WithFieldSelector_NoDiag(t *testing.T) {
+	src := `package a
+type Opts interface{}
+type Client interface{ List(ctx any, obj any, opts ...Opts) error }
+type ListOptions struct{ LabelSelector, FieldSelector, Namespace any }
+type clientPkg struct{}
+var client clientPkg
+func f(c Client){
+	var o struct{}
+	listOpts := ListOptions{
+		FieldSelector: "metadata.name=test",
+		Namespace:     "default",
+	}
+	_ = c.List(nil, &o, &listOpts)
+}`
+	diags := runNoSelectorsAnalyzerOnSrc(t, src)
+	if len(diags) != 0 {
+		t.Fatalf("did not expect diagnostic when ListOptions variable has FieldSelector set")
+	}
+}
+
+func TestNoSelectors_ControllerRuntime_ListOptionsVariable_NoSelectors_Flagged(t *testing.T) {
+	src := `package a
+type Opts interface{}
+type Client interface{ List(ctx any, obj any, opts ...Opts) error }
+type ListOptions struct{ LabelSelector, FieldSelector, Namespace any }
+type clientPkg struct{}
+var client clientPkg
+func f(c Client){
+	var o struct{}
+	listOpts := ListOptions{
+		Namespace: "default",
+	}
+	_ = c.List(nil, &o, &listOpts)
+}`
+	diags := runNoSelectorsAnalyzerOnSrc(t, src)
+	if len(diags) == 0 {
+		t.Fatalf("expected diagnostic when ListOptions variable has no selectors")
+	}
+}

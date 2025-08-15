@@ -135,6 +135,17 @@ func runNoSelectors(pass *analysis.Pass) (any, error) {
 							case *ast.Ident:
 								// Attempt to resolve identifier initializer in current function
 								if init, ok := varInits[x.Name]; ok {
+									// Handle function calls that might return selector options
+									if ce, ok := init.(*ast.CallExpr); ok {
+										// Check if it's a function call that might return selectors
+										if sel, ok := ce.Fun.(*ast.SelectorExpr); ok && sel.Sel != nil {
+											if sel.Sel.Name == "ListOption" {
+												// This is likely client.ListOption(...) - conservatively assume it has selectors
+												hasOpts = true
+											}
+										}
+									}
+
 									// Unwrap address-of
 									if ue, ok := init.(*ast.UnaryExpr); ok && ue.Op == token.AND {
 										init = ue.X
@@ -164,6 +175,10 @@ func runNoSelectors(pass *analysis.Pass) (any, error) {
 											}
 											// Do not set hasOpts here; we want to require selectors
 											break
+										} else if typeName == "MatchingLabels" {
+											hasLabel = true
+										} else if typeName == "MatchingFields" {
+											hasField = true
 										}
 									}
 								} else {
@@ -201,7 +216,7 @@ func runNoSelectors(pass *analysis.Pass) (any, error) {
 									hasField = true
 								}
 							case *ast.UnaryExpr:
-								// support &ListOptions{...}
+								// support &ListOptions{...} and &identifier
 								if x.Op == token.AND {
 									if cl, ok := x.X.(*ast.CompositeLit); ok {
 										typeName := ""
@@ -230,6 +245,43 @@ func runNoSelectors(pass *analysis.Pass) (any, error) {
 											hasLabel = true
 										} else if typeName == "MatchingFields" {
 											hasField = true
+										}
+									} else if id, ok := x.X.(*ast.Ident); ok {
+										// Handle &identifier case - resolve the identifier
+										if init, ok := varInits[id.Name]; ok {
+											if cl, ok := init.(*ast.CompositeLit); ok {
+												typeName := ""
+												switch t := cl.Type.(type) {
+												case *ast.Ident:
+													typeName = t.Name
+												case *ast.SelectorExpr:
+													if t.Sel != nil {
+														typeName = t.Sel.Name
+													}
+												}
+												if typeName == "ListOptions" {
+													for _, el := range cl.Elts {
+														if kv, ok := el.(*ast.KeyValueExpr); ok {
+															if k, ok := kv.Key.(*ast.Ident); ok {
+																if k.Name == "LabelSelector" {
+																	hasLabel = true
+																}
+																if k.Name == "FieldSelector" {
+																	hasField = true
+																}
+															}
+														}
+													}
+													// Do not set hasOpts here; we want to require selectors
+												} else if typeName == "MatchingLabels" {
+													hasLabel = true
+												} else if typeName == "MatchingFields" {
+													hasField = true
+												}
+											}
+										} else {
+											// Unknown identifier: conservatively treat as options to avoid false positives
+											hasOpts = true
 										}
 									}
 								}

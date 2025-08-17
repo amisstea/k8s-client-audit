@@ -8,9 +8,11 @@ import (
 	"testing"
 
 	"golang.org/x/tools/go/analysis"
+	insppass "golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/ast/inspector"
 )
 
-func runTightAnalyzerOnSrc(t *testing.T, src string) []analysis.Diagnostic {
+func runTightAnalyzerOnSrc(t *testing.T, src string, spoofKubernetesTypes bool) []analysis.Diagnostic {
 	t.Helper()
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, "a.go", src, 0)
@@ -21,18 +23,39 @@ func runTightAnalyzerOnSrc(t *testing.T, src string) []analysis.Diagnostic {
 	info := &types.Info{Types: map[ast.Expr]types.TypeAndValue{}, Defs: map[*ast.Ident]types.Object{}, Uses: map[*ast.Ident]types.Object{}, Selections: map[*ast.SelectorExpr]*types.Selection{}}
 	var conf types.Config
 	_, _ = conf.Check("p", fset, files, info)
+
+	// Optionally spoof type info to mark method calls as coming from Kubernetes/time packages
+	if spoofKubernetesTypes {
+		pkgCR := types.NewPackage("sigs.k8s.io/controller-runtime/pkg/client", "client")
+		pkgTime := types.NewPackage("time", "time")
+		ast.Inspect(f, func(n ast.Node) bool {
+			if se, ok := n.(*ast.SelectorExpr); ok && se.Sel != nil {
+				name := se.Sel.Name
+				if name == "Get" || name == "List" || name == "Create" || name == "Update" || name == "Patch" || name == "Delete" || name == "Watch" {
+					// Mark this method as coming from a Kubernetes package
+					sig := types.NewSignatureType(nil, nil, nil, types.NewTuple(), types.NewTuple(), false)
+					info.Uses[se.Sel] = types.NewFunc(token.NoPos, pkgCR, name, sig)
+				} else if name == "Sleep" {
+					// Mark this method as coming from time package
+					sig := types.NewSignatureType(nil, nil, nil, types.NewTuple(), types.NewTuple(), false)
+					info.Uses[se.Sel] = types.NewFunc(token.NoPos, pkgTime, name, sig)
+				}
+			}
+			return true
+		})
+	}
+
 	var diags []analysis.Diagnostic
-	pass := &analysis.Pass{Analyzer: AnalyzerTightErrorLoops, Fset: fset, Files: files, TypesInfo: info, TypesSizes: types.SizesFor("gc", "amd64"), Report: func(d analysis.Diagnostic) { diags = append(diags, d) }, ResultOf: map[*analysis.Analyzer]interface{}{}}
+	pass := &analysis.Pass{Analyzer: AnalyzerTightErrorLoops, Fset: fset, Files: files, TypesInfo: info, TypesSizes: types.SizesFor("gc", "amd64"), Report: func(d analysis.Diagnostic) { diags = append(diags, d) }, ResultOf: map[*analysis.Analyzer]interface{}{insppass.Analyzer: inspector.New(files)}}
 	_, _ = AnalyzerTightErrorLoops.Run(pass)
 	return diags
 }
 
 func TestTightErrorLoops_WithAPICall_NoSleep(t *testing.T) {
 	src := `package a
-type PodsIFace interface{ List(ctx any) error }
-type CoreV1 interface{ Pods(ns string) PodsIFace }
-func f(c CoreV1){ var err error; for { if err != nil { _ = c.Pods("").List(nil) } else { break } } }`
-	diags := runTightAnalyzerOnSrc(t, src)
+type Client interface{ List(ctx any) error }
+func f(c Client){ var err error; for { if err != nil { _ = c.List(nil) } else { break } } }`
+	diags := runTightAnalyzerOnSrc(t, src, true) // spoof as Kubernetes types
 	if len(diags) == 0 {
 		t.Fatalf("expected diagnostic for tight loop without sleep around API call")
 	}
@@ -41,7 +64,7 @@ func f(c CoreV1){ var err error; for { if err != nil { _ = c.Pods("").List(nil) 
 func TestTightErrorLoops_NoAPICall_NoDiag(t *testing.T) {
 	src := `package a
 func f(){ var err error; for { if err != nil { _ = 1+1 } else { break } } }`
-	diags := runTightAnalyzerOnSrc(t, src)
+	diags := runTightAnalyzerOnSrc(t, src, false) // no spoofing needed
 	if len(diags) != 0 {
 		t.Fatalf("did not expect diagnostic without API call, got %d", len(diags))
 	}
@@ -50,11 +73,20 @@ func f(){ var err error; for { if err != nil { _ = 1+1 } else { break } } }`
 func TestTightErrorLoops_WithSleep_NoDiag(t *testing.T) {
 	src := `package a
 import "time"
-type PodsIFace interface{ List(ctx any) error }
-type CoreV1 interface{ Pods(ns string) PodsIFace }
-func f(c CoreV1){ var err error; for { if err != nil { _ = c.Pods("").List(nil); time.Sleep(100) } else { break } } }`
-	diags := runTightAnalyzerOnSrc(t, src)
+type Client interface{ List(ctx any) error }
+func f(c Client){ var err error; for { if err != nil { _ = c.List(nil); time.Sleep(100) } else { break } } }`
+	diags := runTightAnalyzerOnSrc(t, src, true) // spoof as Kubernetes/time types
 	if len(diags) != 0 {
 		t.Fatalf("did not expect diagnostic when sleep present, got %d", len(diags))
+	}
+}
+
+func TestTightErrorLoops_NonKubernetesClient_NoDiag(t *testing.T) {
+	src := `package a
+type DatabaseClient interface{ List() []string }
+func f(c DatabaseClient){ var err error; for { if err != nil { _ = c.List() } else { break } } }`
+	diags := runTightAnalyzerOnSrc(t, src, false) // don't spoof - should be treated as non-Kubernetes
+	if len(diags) != 0 {
+		t.Fatalf("expected 0 diagnostics for non-Kubernetes client calls, got %d", len(diags))
 	}
 }

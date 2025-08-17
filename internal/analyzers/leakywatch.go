@@ -2,50 +2,111 @@ package analyzers
 
 import (
 	"go/ast"
+	"go/types"
+	"strings"
 
 	"golang.org/x/tools/go/analysis"
+	insppass "golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/ast/inspector"
 )
 
 // AnalyzerLeakyWatch flags Watch calls whose ResultChan is obtained but
 // not stopped/drained. Heuristic: if a call to Stop/Cancel is not found.
 var AnalyzerLeakyWatch = &analysis.Analyzer{
-	Name: "leakywatch",
-	Doc:  "flags potential leaky watch channels without stop",
-	Run:  runLeakyWatch,
+	Name:     "leakywatch",
+	Doc:      "flags potential leaky watch channels without stop",
+	Run:      runLeakyWatch,
+	Requires: []*analysis.Analyzer{insppass.Analyzer},
 }
 
 func runLeakyWatch(pass *analysis.Pass) (any, error) {
-	for _, f := range pass.Files {
-		ast.Inspect(f, func(n ast.Node) bool {
-			as, ok := n.(*ast.AssignStmt)
-			if !ok || len(as.Rhs) == 0 {
+	insp := pass.ResultOf[insppass.Analyzer].(*inspector.Inspector)
+
+	// Check if a method call is a Kubernetes ResultChan call
+	isKubernetesResultChan := func(obj types.Object) bool {
+		if obj == nil || obj.Pkg() == nil {
+			return false
+		}
+		name := obj.Name()
+		if name != "ResultChan" {
+			return false
+		}
+		pkg := obj.Pkg().Path()
+
+		// Check for Kubernetes-related packages
+		switch {
+		case pkg == "sigs.k8s.io/controller-runtime/pkg/client":
+			return true
+		case pkg == "k8s.io/client-go/dynamic":
+			return true
+		default:
+			// Check for any k8s.io or sigs.k8s.io packages
+			if strings.HasPrefix(pkg, "k8s.io/") || strings.HasPrefix(pkg, "sigs.k8s.io/") {
 				return true
 			}
-			// x := w.ResultChan()
-			if ce, ok := as.Rhs[0].(*ast.CallExpr); ok {
-				if sel, ok := ce.Fun.(*ast.SelectorExpr); ok && sel.Sel != nil && sel.Sel.Name == "ResultChan" {
-					// Conservatively scan function body for Stop/Cancel
-					foundStop := false
-					ast.Inspect(f, func(m ast.Node) bool {
-						ce2, ok := m.(*ast.CallExpr)
-						if !ok {
-							return true
-						}
-						if s2, ok := ce2.Fun.(*ast.SelectorExpr); ok && s2.Sel != nil {
-							if s2.Sel.Name == "Stop" || s2.Sel.Name == "StopWatching" || s2.Sel.Name == "Cancel" {
-								foundStop = true
-								return false
-							}
-						}
-						return true
-					})
-					if !foundStop {
-						pass.Reportf(sel.Sel.Pos(), "Watch channel may not be stopped; ensure Stop()/Cancel() is called")
+			// Check for packages containing client-go, controller-runtime, or apimachinery
+			if strings.Contains(pkg, "client-go") || strings.Contains(pkg, "controller-runtime") || strings.Contains(pkg, "apimachinery") {
+				return true
+			}
+		}
+		return false
+	}
+
+	// Check if a method call is a stop/cancel operation
+	isStopCall := func(obj types.Object) bool {
+		if obj == nil {
+			return false
+		}
+		name := obj.Name()
+		return name == "Stop" || name == "StopWatching" || name == "Cancel"
+	}
+
+	// Track ResultChan calls per function and their corresponding stop calls
+	var currentFunc *ast.FuncDecl
+	var resultChanCalls []ast.Node
+	var stopCalls []ast.Node
+
+	nodes := []ast.Node{(*ast.FuncDecl)(nil), (*ast.CallExpr)(nil)}
+	insp.Nodes(nodes, func(n ast.Node, push bool) bool {
+		switch x := n.(type) {
+		case *ast.FuncDecl:
+			if push {
+				currentFunc = x
+				// Reset tracking for this function
+				resultChanCalls = resultChanCalls[:0]
+				stopCalls = stopCalls[:0]
+			} else {
+				// Check for leaky watches in this function
+				if currentFunc != nil && len(resultChanCalls) > 0 && len(stopCalls) == 0 {
+					// Found ResultChan calls but no Stop calls
+					for _, call := range resultChanCalls {
+						pass.Reportf(call.Pos(), "Kubernetes Watch channel may not be stopped; ensure Stop()/Cancel() is called")
 					}
 				}
+				currentFunc = nil
 			}
-			return true
-		})
-	}
+		case *ast.CallExpr:
+			if !push || currentFunc == nil {
+				return true
+			}
+
+			// Check if this is a method call
+			sel, ok := x.Fun.(*ast.SelectorExpr)
+			if !ok || sel.Sel == nil {
+				return true
+			}
+
+			// Use type information to determine what kind of call this is
+			if obj := pass.TypesInfo.Uses[sel.Sel]; obj != nil {
+				if isKubernetesResultChan(obj) {
+					resultChanCalls = append(resultChanCalls, x)
+				} else if isStopCall(obj) {
+					stopCalls = append(stopCalls, x)
+				}
+			}
+		}
+		return true
+	})
+
 	return nil, nil
 }

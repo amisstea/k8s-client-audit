@@ -10,7 +10,7 @@ import (
 
 func runIgnoring429AnalyzerOnSrc(t *testing.T, src string) []analysis.Diagnostic {
 	t.Helper()
-	diags, err := testutil.RunAnalyzerOnSrc(AnalyzerIgnoring429, src, nil)
+	diags, err := testutil.RunAnalyzerOnSrc(AnalyzerIgnoring429, src)
 	if err != nil {
 		t.Fatalf("run: %v", err)
 	}

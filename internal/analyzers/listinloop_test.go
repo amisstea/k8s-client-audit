@@ -10,7 +10,7 @@ import (
 
 func runListInLoopAnalyzerOnSrc(t *testing.T, src string) []analysis.Diagnostic {
 	t.Helper()
-	diags, err := testutil.RunAnalyzerOnSrc(AnalyzerListInLoop, src, nil)
+	diags, err := testutil.RunAnalyzerOnSrc(AnalyzerListInLoop, src)
 	if err != nil {
 		t.Fatalf("run: %v", err)
 	}

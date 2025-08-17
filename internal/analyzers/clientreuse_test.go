@@ -1,80 +1,19 @@
 package analyzers
 
 import (
-	"go/ast"
-	"go/parser"
-	"go/token"
-	"go/types"
 	"testing"
 
+	"github.com/amisstea/k8s-client-audit/internal/analyzers/testutil"
+
 	"golang.org/x/tools/go/analysis"
-	insppass "golang.org/x/tools/go/analysis/passes/inspect"
-	"golang.org/x/tools/go/ast/inspector"
 )
 
 func runClientReuseAnalyzerOnSrc(t *testing.T, src string) []analysis.Diagnostic {
 	t.Helper()
-	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "", src, 0)
+	diags, err := testutil.RunAnalyzerOnSrc(AnalyzerClientReuse, src, testutil.CommonK8sSpoof)
 	if err != nil {
-		t.Fatalf("parse: %v", err)
+		t.Fatalf("run: %v", err)
 	}
-	files := []*ast.File{f}
-	info := &types.Info{Types: map[ast.Expr]types.TypeAndValue{}, Defs: map[*ast.Ident]types.Object{}, Uses: map[*ast.Ident]types.Object{}, Selections: map[*ast.SelectorExpr]*types.Selection{}}
-	var conf types.Config
-	_, _ = conf.Check("p", fset, files, info)
-	// Spoof type info: mark calls to constructor names as if coming from real K8s packages
-	pkgKube := types.NewPackage("k8s.io/client-go/kubernetes", "kubernetes")
-	pkgRest := types.NewPackage("k8s.io/client-go/rest", "rest")
-	pkgCR := types.NewPackage("sigs.k8s.io/controller-runtime/pkg/client", "client")
-	ast.Inspect(f, func(n ast.Node) bool {
-		ce, ok := n.(*ast.CallExpr)
-		if !ok {
-			return true
-		}
-		switch fun := ce.Fun.(type) {
-		case *ast.Ident:
-			switch fun.Name {
-			case "NewForConfig":
-				info.Uses[fun] = types.NewFunc(token.NoPos, pkgKube, "NewForConfig", nil)
-			case "RESTClientFor":
-				info.Uses[fun] = types.NewFunc(token.NoPos, pkgRest, "RESTClientFor", nil)
-			case "New":
-				info.Uses[fun] = types.NewFunc(token.NoPos, pkgCR, "New", nil)
-			}
-		case *ast.SelectorExpr:
-			if fun.Sel != nil {
-				switch fun.Sel.Name {
-				case "NewForConfig":
-					info.Uses[fun.Sel] = types.NewFunc(token.NoPos, pkgKube, "NewForConfig", nil)
-				case "RESTClientFor":
-					info.Uses[fun.Sel] = types.NewFunc(token.NoPos, pkgRest, "RESTClientFor", nil)
-				case "New":
-					info.Uses[fun.Sel] = types.NewFunc(token.NoPos, pkgCR, "New", nil)
-				}
-			}
-		}
-		return true
-	})
-	// Spoof Reconcile hot-path signature on method receiver: Reconcile(...) (reconcile.Result, error)
-	ast.Inspect(f, func(n ast.Node) bool {
-		fd, ok := n.(*ast.FuncDecl)
-		if !ok || fd.Name == nil || fd.Name.Name != "Reconcile" {
-			return true
-		}
-		pkgRec := types.NewPackage("sigs.k8s.io/controller-runtime/pkg/reconcile", "reconcile")
-		resNamed := types.NewNamed(types.NewTypeName(token.NoPos, pkgRec, "Result", nil), types.NewStruct(nil, nil), nil)
-		resTuple := types.NewTuple(
-			types.NewVar(token.NoPos, nil, "", resNamed),
-			types.NewVar(token.NoPos, nil, "", types.Universe.Lookup("error").Type()),
-		)
-		sig := types.NewSignatureType(nil, nil, nil, types.NewTuple(), resTuple, false)
-		info.Defs[fd.Name] = types.NewFunc(token.NoPos, nil, fd.Name.Name, sig)
-		return false
-	})
-	var diags []analysis.Diagnostic
-	pass := &analysis.Pass{Analyzer: AnalyzerClientReuse, Fset: fset, Files: files, TypesInfo: info, TypesSizes: types.SizesFor("gc", "amd64"), Report: func(d analysis.Diagnostic) { diags = append(diags, d) }, ResultOf: map[*analysis.Analyzer]interface{}{insppass.Analyzer: inspector.New(files)}}
-	_, _ = AnalyzerClientReuse.Run(pass)
 	return diags
 }
 

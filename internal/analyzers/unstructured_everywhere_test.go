@@ -12,7 +12,7 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 )
 
-func runUnstructuredEverywhereAnalyzerOnSrc(t *testing.T, src string, spoofKubernetesTypes bool) []analysis.Diagnostic {
+func runUnstructuredEverywhereAnalyzerOnSrc(t *testing.T, src string, spoof bool) []analysis.Diagnostic {
 	t.Helper()
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, "", src, 0)
@@ -28,7 +28,7 @@ func runUnstructuredEverywhereAnalyzerOnSrc(t *testing.T, src string, spoofKuber
 	}
 
 	// Optionally spoof type info to mark types as coming from Kubernetes unstructured packages
-	if spoofKubernetesTypes {
+	if spoof {
 		pkgUnstructured := types.NewPackage("k8s.io/apimachinery/pkg/apis/meta/v1/unstructured", "unstructured")
 
 		// Find type declarations and mark them as Kubernetes Unstructured types

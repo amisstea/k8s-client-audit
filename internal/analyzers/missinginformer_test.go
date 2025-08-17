@@ -12,7 +12,7 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 )
 
-func runMissingInformerAnalyzerOnSrc(t *testing.T, src string, spoofKubernetesTypes bool) []analysis.Diagnostic {
+func runMissingInformerAnalyzerOnSrc(t *testing.T, src string, spoof bool) []analysis.Diagnostic {
 	t.Helper()
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, "", src, 0)
@@ -25,7 +25,7 @@ func runMissingInformerAnalyzerOnSrc(t *testing.T, src string, spoofKubernetesTy
 	_, _ = conf.Check("p", fset, files, info)
 
 	// Optionally spoof type info to mark method calls as coming from Kubernetes packages
-	if spoofKubernetesTypes {
+	if spoof {
 		pkgInformers := types.NewPackage("k8s.io/client-go/informers", "informers")
 		pkgClient := types.NewPackage("sigs.k8s.io/controller-runtime/pkg/client", "client")
 		ast.Inspect(f, func(n ast.Node) bool {

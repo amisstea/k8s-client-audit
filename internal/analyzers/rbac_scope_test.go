@@ -12,7 +12,7 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 )
 
-func runRBACScopeAnalyzerOnSrc(t *testing.T, src string, which *analysis.Analyzer, spoofKubernetesTypes bool) []analysis.Diagnostic {
+func runRBACScopeAnalyzerOnSrc(t *testing.T, src string, which *analysis.Analyzer, spoof bool) []analysis.Diagnostic {
 	t.Helper()
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, "", src, 0)
@@ -28,7 +28,7 @@ func runRBACScopeAnalyzerOnSrc(t *testing.T, src string, which *analysis.Analyze
 	}
 
 	// Optionally spoof type info to mark types as coming from Kubernetes RBAC packages
-	if spoofKubernetesTypes {
+	if spoof {
 		pkgRBAC := types.NewPackage("k8s.io/api/rbac/v1", "v1")
 
 		// Find type declarations and mark them as Kubernetes RBAC types

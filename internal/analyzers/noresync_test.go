@@ -10,7 +10,7 @@ import (
 
 func runNoResyncAnalyzerOnSrc(t *testing.T, src string) []analysis.Diagnostic {
 	t.Helper()
-	diags, err := testutil.RunAnalyzerOnSrc(AnalyzerNoResync, src, nil)
+	diags, err := testutil.RunAnalyzerOnSrc(AnalyzerNoResync, src)
 	if err != nil {
 		t.Fatalf("run: %v", err)
 	}

@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"golang.org/x/tools/go/analysis"
+	insppass "golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/ast/inspector"
 )
 
 func runAnalyzerOnSrc(t *testing.T, src string) []analysis.Diagnostic {
@@ -37,7 +39,7 @@ func runAnalyzerOnSrc(t *testing.T, src string) []analysis.Diagnostic {
 		TypesInfo:  info,
 		TypesSizes: types.SizesFor("gc", build.Default.GOARCH),
 		Report:     func(d analysis.Diagnostic) { diags = append(diags, d) },
-		ResultOf:   map[*analysis.Analyzer]interface{}{},
+		ResultOf:   map[*analysis.Analyzer]interface{}{insppass.Analyzer: inspector.New(files)},
 	}
 	_, _ = AnalyzerQPSBurst.Run(pass)
 	return diags

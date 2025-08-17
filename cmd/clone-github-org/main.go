@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	githubclient "github.com/amisstea/k8s-client-audit/internal/githubclient"
@@ -19,18 +20,32 @@ type Options struct {
 	Org       string
 	DestDir   string
 	SkipClone bool
+	SkipRepos map[string]bool
 }
 
 func run(ctx context.Context, args []string) error {
 	fs := flag.NewFlagSet("clone-github-org", flag.ExitOnError)
 	org := fs.String("org", "konflux-ci", "GitHub organization to clone")
 	dest := fs.String("dest", "sources", "Destination directory for repositories")
+	skipRepos := fs.String("skip-repos", "", "Comma-separated list of repository names to skip")
 	debug := fs.Bool("debug", false, "Enable debug logging across the app")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 
-	opts := Options{Org: *org, DestDir: *dest}
+	// Parse skip-repos list
+	skipReposMap := make(map[string]bool)
+	if *skipRepos != "" {
+		repos := strings.Split(*skipRepos, ",")
+		for _, repo := range repos {
+			repo = strings.TrimSpace(repo)
+			if repo != "" {
+				skipReposMap[repo] = true
+			}
+		}
+	}
+
+	opts := Options{Org: *org, DestDir: *dest, SkipRepos: skipReposMap}
 	if opts.Org == "" {
 		return errors.New("org must not be empty")
 	}
@@ -60,11 +75,26 @@ func run(ctx context.Context, args []string) error {
 
 	slog.Info("🔍 Found repositories", "count", len(repos), "org", opts.Org)
 
+	if len(opts.SkipRepos) > 0 {
+		skipList := make([]string, 0, len(opts.SkipRepos))
+		for repo := range opts.SkipRepos {
+			skipList = append(skipList, repo)
+		}
+		slog.Info("⏭️  Will skip repositories", "repos", skipList)
+	}
+
 	if opts.SkipClone {
 		slog.Info("⏭️  Skipping clone/update; assuming sources exist", "dest", opts.DestDir)
 	} else {
 		var cloned, updated, failedClone, failedUpdate, skipped int
 		for _, r := range repos {
+			// Check if this repo should be skipped
+			if opts.SkipRepos[r.Name] {
+				slog.Info("⏭️  Skipping repo (in skip list)", "repo", r.Name)
+				skipped++
+				continue
+			}
+
 			repoDir := filepath.Join(opts.DestDir, r.Name)
 			url := r.SSHURL
 			if url == "" {

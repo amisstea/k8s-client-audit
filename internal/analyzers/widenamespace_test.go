@@ -1,54 +1,25 @@
 package analyzers
 
 import (
-	"go/ast"
-	"go/parser"
-	"go/token"
-	"go/types"
 	"testing"
 
+	"github.com/amisstea/k8s-client-audit/internal/analyzers/testutil"
+
 	"golang.org/x/tools/go/analysis"
-	insppass "golang.org/x/tools/go/analysis/passes/inspect"
-	"golang.org/x/tools/go/ast/inspector"
 )
 
 func runWideNamespaceAnalyzerOnSrc(t *testing.T, src string, spoof bool) []analysis.Diagnostic {
 	t.Helper()
-	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "", src, 0)
-	if err != nil {
-		t.Fatalf("parse: %v", err)
-	}
-	files := []*ast.File{f}
-	info := &types.Info{Types: map[ast.Expr]types.TypeAndValue{}, Defs: map[*ast.Ident]types.Object{}, Uses: map[*ast.Ident]types.Object{}, Selections: map[*ast.SelectorExpr]*types.Selection{}}
-	var conf types.Config
-	_, _ = conf.Check("p", fset, files, info)
-
-	// Optionally spoof type info to mark method calls as coming from Kubernetes packages
-	if spoof {
-		pkgCR := types.NewPackage("sigs.k8s.io/controller-runtime/pkg/client", "client")
-		ast.Inspect(f, func(n ast.Node) bool {
-			if se, ok := n.(*ast.SelectorExpr); ok && se.Sel != nil {
-				name := se.Sel.Name
-				if name == "InNamespace" || name == "List" {
-					// Mark this method as coming from a Kubernetes package
-					sig := types.NewSignatureType(nil, nil, nil, types.NewTuple(), types.NewTuple(), false)
-					info.Uses[se.Sel] = types.NewFunc(token.NoPos, pkgCR, name, sig)
-				}
-			} else if id, ok := n.(*ast.Ident); ok {
-				// Handle standalone InNamespace function calls
-				if id.Name == "InNamespace" {
-					sig := types.NewSignatureType(nil, nil, nil, types.NewTuple(), types.NewTuple(), false)
-					info.Uses[id] = types.NewFunc(token.NoPos, pkgCR, id.Name, sig)
-				}
-			}
-			return true
-		})
-	}
-
 	var diags []analysis.Diagnostic
-	pass := &analysis.Pass{Analyzer: AnalyzerWideNamespace, Fset: fset, Files: files, TypesInfo: info, TypesSizes: types.SizesFor("gc", "amd64"), Report: func(d analysis.Diagnostic) { diags = append(diags, d) }, ResultOf: map[*analysis.Analyzer]interface{}{insppass.Analyzer: inspector.New(files)}}
-	_, _ = AnalyzerWideNamespace.Run(pass)
+	var err error
+	if spoof {
+		diags, err = testutil.RunAnalyzerOnSrc(AnalyzerWideNamespace, src, testutil.SpoofCommonK8s)
+	} else {
+		diags, err = testutil.RunAnalyzerOnSrc(AnalyzerWideNamespace, src)
+	}
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
 	return diags
 }
 

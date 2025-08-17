@@ -1,68 +1,25 @@
 package analyzers
 
 import (
-	"go/ast"
-	"go/parser"
-	"go/token"
-	"go/types"
 	"testing"
 
+	"github.com/amisstea/k8s-client-audit/internal/analyzers/testutil"
+
 	"golang.org/x/tools/go/analysis"
-	insppass "golang.org/x/tools/go/analysis/passes/inspect"
-	"golang.org/x/tools/go/ast/inspector"
 )
 
 func runRBACScopeAnalyzerOnSrc(t *testing.T, src string, which *analysis.Analyzer, spoof bool) []analysis.Diagnostic {
 	t.Helper()
-	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "", src, 0)
-	if err != nil {
-		t.Fatalf("parse: %v", err)
-	}
-	files := []*ast.File{f}
-	info := &types.Info{Types: map[ast.Expr]types.TypeAndValue{}, Defs: map[*ast.Ident]types.Object{}, Uses: map[*ast.Ident]types.Object{}, Selections: map[*ast.SelectorExpr]*types.Selection{}}
-	var conf types.Config
-	_, err = conf.Check("p", fset, files, info)
-	if err != nil {
-		// Expected for test files with incomplete type information
-	}
-
-	// Optionally spoof type info to mark types as coming from Kubernetes RBAC packages
-	if spoof {
-		pkgRBAC := types.NewPackage("k8s.io/api/rbac/v1", "v1")
-
-		// Find type declarations and mark them as Kubernetes RBAC types
-		ast.Inspect(f, func(n ast.Node) bool {
-			if ts, ok := n.(*ast.TypeSpec); ok {
-				name := ts.Name.Name
-				if name == "ClusterRole" || name == "ClusterRoleBinding" || name == "PolicyRule" || name == "Rule" {
-					// Create a named type for Kubernetes RBAC
-					rbacType := types.NewNamed(types.NewTypeName(token.NoPos, pkgRBAC, name, nil), types.NewStruct(nil, nil), nil)
-					info.Defs[ts.Name] = rbacType.Obj()
-				}
-			}
-			return true
-		})
-
-		// Find composite literals and associate them with the Kubernetes RBAC types
-		ast.Inspect(f, func(n ast.Node) bool {
-			if cl, ok := n.(*ast.CompositeLit); ok {
-				if id, ok := cl.Type.(*ast.Ident); ok {
-					name := id.Name
-					if name == "ClusterRole" || name == "ClusterRoleBinding" || name == "PolicyRule" || name == "Rule" {
-						// Create the Kubernetes RBAC type
-						rbacType := types.NewNamed(types.NewTypeName(token.NoPos, pkgRBAC, name, nil), types.NewStruct(nil, nil), nil)
-						info.Types[cl] = types.TypeAndValue{Type: rbacType}
-					}
-				}
-			}
-			return true
-		})
-	}
-
 	var diags []analysis.Diagnostic
-	pass := &analysis.Pass{Analyzer: which, Fset: fset, Files: files, TypesInfo: info, TypesSizes: types.SizesFor("gc", "amd64"), Report: func(d analysis.Diagnostic) { diags = append(diags, d) }, ResultOf: map[*analysis.Analyzer]interface{}{insppass.Analyzer: inspector.New(files)}}
-	_, _ = which.Run(pass)
+	var err error
+	if spoof {
+		diags, err = testutil.RunAnalyzerOnSrc(which, src, testutil.SpoofRBACTypes)
+	} else {
+		diags, err = testutil.RunAnalyzerOnSrc(which, src)
+	}
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
 	return diags
 }
 

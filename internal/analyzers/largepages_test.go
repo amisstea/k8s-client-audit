@@ -13,7 +13,7 @@ func runLargePagesAnalyzerOnSrc(t *testing.T, src string, spoof bool) []analysis
 	var diags []analysis.Diagnostic
 	var err error
 	if spoof {
-		diags, err = testutil.RunAnalyzerOnSrc(AnalyzerLargePageSizes, src, testutil.CommonK8sSpoof, testutil.SpoofListOptionsType)
+		diags, err = testutil.RunAnalyzerOnSrc(AnalyzerLargePageSizes, src, testutil.SpoofCommonK8s, testutil.SpoofListOptionsType)
 	} else {
 		diags, err = testutil.RunAnalyzerOnSrc(AnalyzerLargePageSizes, src)
 	}

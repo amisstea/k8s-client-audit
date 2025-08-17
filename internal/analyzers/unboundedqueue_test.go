@@ -1,52 +1,19 @@
 package analyzers
 
 import (
-	"go/ast"
-	"go/parser"
-	"go/token"
-	"go/types"
 	"testing"
 
+	"github.com/amisstea/k8s-client-audit/internal/analyzers/testutil"
+
 	"golang.org/x/tools/go/analysis"
-	insppass "golang.org/x/tools/go/analysis/passes/inspect"
-	"golang.org/x/tools/go/ast/inspector"
 )
 
 func runUnboundedQueueAnalyzerOnSrc(t *testing.T, src string) []analysis.Diagnostic {
 	t.Helper()
-	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "", src, 0)
+	diags, err := testutil.RunAnalyzerOnSrc(AnalyzerUnboundedQueue, src, testutil.SpoofWorkqueue)
 	if err != nil {
-		t.Fatalf("parse: %v", err)
+		t.Fatalf("run: %v", err)
 	}
-	files := []*ast.File{f}
-	info := &types.Info{Types: map[ast.Expr]types.TypeAndValue{}, Defs: map[*ast.Ident]types.Object{}, Uses: map[*ast.Ident]types.Object{}, Selections: map[*ast.SelectorExpr]*types.Selection{}}
-	var conf types.Config
-	_, _ = conf.Check("p", fset, files, info)
-	// Spoof workqueue and ratelimiter symbols to proper packages so analyzer type checks pass
-	pkgWQ := types.NewPackage("k8s.io/client-go/util/workqueue", "workqueue")
-	pkgWQR := types.NewPackage("k8s.io/client-go/util/workqueue", "workqueue")
-	ast.Inspect(f, func(n ast.Node) bool {
-		if ce, ok := n.(*ast.CallExpr); ok {
-			switch fun := ce.Fun.(type) {
-			case *ast.Ident:
-				// do not map bare identifiers; only selector-based calls to workqueue are recognized
-			case *ast.SelectorExpr:
-				if fun.Sel != nil {
-					switch fun.Sel.Name {
-					case "New", "NewNamed":
-						info.Uses[fun.Sel] = types.NewFunc(token.NoPos, pkgWQ, fun.Sel.Name, nil)
-					case "NewItemExponentialFailureRateLimiter", "NewItemFastSlowRateLimiter", "NewMaxOfRateLimiter", "NewWithMaxWaitRateLimiter":
-						info.Uses[fun.Sel] = types.NewFunc(token.NoPos, pkgWQR, fun.Sel.Name, nil)
-					}
-				}
-			}
-		}
-		return true
-	})
-	var diags []analysis.Diagnostic
-	pass := &analysis.Pass{Analyzer: AnalyzerUnboundedQueue, Fset: fset, Files: files, TypesInfo: info, TypesSizes: types.SizesFor("gc", "amd64"), Report: func(d analysis.Diagnostic) { diags = append(diags, d) }, ResultOf: map[*analysis.Analyzer]interface{}{insppass.Analyzer: inspector.New(files)}}
-	_, _ = AnalyzerUnboundedQueue.Run(pass)
 	return diags
 }
 

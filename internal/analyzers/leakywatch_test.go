@@ -13,7 +13,7 @@ func runLeakyWatchAnalyzerOnSrc(t *testing.T, src string, spoof bool) []analysis
 	var diags []analysis.Diagnostic
 	var err error
 	if spoof {
-		diags, err = testutil.RunAnalyzerOnSrc(AnalyzerLeakyWatch, src, testutil.CommonK8sSpoof)
+		diags, err = testutil.RunAnalyzerOnSrc(AnalyzerLeakyWatch, src, testutil.SpoofCommonK8s)
 	} else {
 		diags, err = testutil.RunAnalyzerOnSrc(AnalyzerLeakyWatch, src)
 	}

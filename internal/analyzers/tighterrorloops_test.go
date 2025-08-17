@@ -13,7 +13,7 @@ func runTightAnalyzerOnSrc(t *testing.T, src string, spoof bool) []analysis.Diag
 	var diags []analysis.Diagnostic
 	var err error
 	if spoof {
-		diags, err = testutil.RunAnalyzerOnSrc(AnalyzerTightErrorLoops, src, testutil.CommonK8sSpoof, testutil.CommonStdLibSpoof)
+		diags, err = testutil.RunAnalyzerOnSrc(AnalyzerTightErrorLoops, src, testutil.SpoofCommonK8s, testutil.SpoofCommonStdLib)
 	} else {
 		diags, err = testutil.RunAnalyzerOnSrc(AnalyzerTightErrorLoops, src)
 	}

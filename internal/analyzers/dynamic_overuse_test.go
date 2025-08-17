@@ -10,7 +10,7 @@ import (
 
 func runDynamicOveruseAnalyzerOnSrc(t *testing.T, src string) []analysis.Diagnostic {
 	t.Helper()
-	diags, err := testutil.RunAnalyzerOnSrc(AnalyzerDynamicOveruse, src, testutil.CommonK8sSpoof)
+	diags, err := testutil.RunAnalyzerOnSrc(AnalyzerDynamicOveruse, src, testutil.SpoofCommonK8s)
 	if err != nil {
 		t.Fatalf("run: %v", err)
 	}

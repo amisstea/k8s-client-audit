@@ -10,7 +10,7 @@ import (
 
 func runDiscoveryFloodAnalyzerOnSrc(t *testing.T, src string) []analysis.Diagnostic {
 	t.Helper()
-	diags, err := testutil.RunAnalyzerOnSrc(AnalyzerDiscoveryFlood, src, testutil.CommonK8sSpoof)
+	diags, err := testutil.RunAnalyzerOnSrc(AnalyzerDiscoveryFlood, src, testutil.SpoofCommonK8s)
 	if err != nil {
 		t.Fatalf("run: %v", err)
 	}

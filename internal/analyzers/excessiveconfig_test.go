@@ -10,7 +10,7 @@ import (
 
 func runExcessiveConfigAnalyzerOnSrc(t *testing.T, src string) []analysis.Diagnostic {
 	t.Helper()
-	diags, err := testutil.RunAnalyzerOnSrc(AnalyzerExcessiveConfig, src, testutil.CommonK8sSpoof)
+	diags, err := testutil.RunAnalyzerOnSrc(AnalyzerExcessiveConfig, src, testutil.SpoofCommonK8s)
 	if err != nil {
 		t.Fatalf("run: %v", err)
 	}

@@ -1,16 +1,11 @@
 package analyzers
 
 import (
-	"go/ast"
-	"go/parser"
-	"go/token"
-	"go/types"
-	"runtime"
 	"testing"
 
+	"github.com/amisstea/k8s-client-audit/internal/analyzers/testutil"
+
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
-	"golang.org/x/tools/go/ast/inspector"
 )
 
 // NOTE: The analyzer under test expects the *real* rest.Config type from k8s.io/client-go/rest,
@@ -18,41 +13,10 @@ import (
 
 func runRestConfigDefaultsAnalyzerOnSrc(t *testing.T, src string) []analysis.Diagnostic {
 	t.Helper()
-	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "", src, parser.AllErrors)
+	diags, err := testutil.RunAnalyzerOnSrc(AnalyzerRestConfigDefaults, src, testutil.SpoofRestConfig)
 	if err != nil {
-		t.Fatalf("parse: %v", err)
+		t.Fatalf("run: %v", err)
 	}
-	files := []*ast.File{f}
-	info := &types.Info{
-		Types:      map[ast.Expr]types.TypeAndValue{},
-		Defs:       map[*ast.Ident]types.Object{},
-		Uses:       map[*ast.Ident]types.Object{},
-		Selections: map[*ast.SelectorExpr]*types.Selection{},
-	}
-	var conf types.Config
-	_, _ = conf.Check("p", fset, files, info)
-	// Fabricate named type for rest.Config and attach to composite literals so type check passes
-	pkg := types.NewPackage("k8s.io/client-go/rest", "rest")
-	named := types.NewNamed(types.NewTypeName(token.NoPos, pkg, "Config", nil), types.NewStruct(nil, nil), nil)
-	ast.Inspect(f, func(n ast.Node) bool {
-		if cl, ok := n.(*ast.CompositeLit); ok {
-			info.Types[cl] = types.TypeAndValue{Type: named}
-		}
-		return true
-	})
-
-	var diags []analysis.Diagnostic
-	pass := &analysis.Pass{
-		Analyzer:   AnalyzerRestConfigDefaults,
-		Fset:       fset,
-		Files:      files,
-		TypesInfo:  info,
-		TypesSizes: types.SizesFor("gc", runtime.GOARCH),
-		Report:     func(d analysis.Diagnostic) { diags = append(diags, d) },
-		ResultOf:   map[*analysis.Analyzer]interface{}{inspect.Analyzer: inspector.New(files)},
-	}
-	_, _ = AnalyzerRestConfigDefaults.Run(pass)
 	return diags
 }
 

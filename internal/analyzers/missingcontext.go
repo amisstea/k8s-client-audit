@@ -2,41 +2,89 @@ package analyzers
 
 import (
 	"go/ast"
+	"go/types"
+	"strings"
 
 	"golang.org/x/tools/go/analysis"
+	insppass "golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/ast/inspector"
 )
 
 // AnalyzerMissingContext flags client calls that pass context.Background/TODO instead of a propagated context.
 var AnalyzerMissingContext = &analysis.Analyzer{
-	Name: "missingcontext",
-	Doc:  "flags client calls using context.Background/TODO instead of propagated context",
-	Run:  runMissingContext,
+	Name:     "missingcontext",
+	Doc:      "flags client calls using context.Background/TODO instead of propagated context",
+	Run:      runMissingContext,
+	Requires: []*analysis.Analyzer{insppass.Analyzer},
 }
 
 func runMissingContext(pass *analysis.Pass) (any, error) {
-	for _, f := range pass.Files {
-		ast.Inspect(f, func(n ast.Node) bool {
-			call, ok := n.(*ast.CallExpr)
-			if !ok {
+	insp := pass.ResultOf[insppass.Analyzer].(*inspector.Inspector)
+
+	// Check if a method call is from a Kubernetes-related package
+	isKubernetesClientMethod := func(obj types.Object) bool {
+		if obj == nil || obj.Pkg() == nil {
+			return false
+		}
+		pkg := obj.Pkg().Path()
+		name := obj.Name()
+
+		// Only flag specific method names
+		if !(name == "Get" || name == "List" || name == "Create" || name == "Update" || name == "Patch" || name == "Delete") {
+			return false
+		}
+
+		// Check for Kubernetes-related packages
+		switch {
+		case pkg == "k8s.io/client-go/kubernetes/typed/apps/v1" ||
+			pkg == "k8s.io/client-go/kubernetes/typed/core/v1" ||
+			pkg == "k8s.io/client-go/kubernetes/typed/batch/v1" ||
+			pkg == "k8s.io/client-go/kubernetes/typed/networking/v1" ||
+			pkg == "k8s.io/client-go/kubernetes/typed/rbac/v1" ||
+			pkg == "sigs.k8s.io/controller-runtime/pkg/client":
+			return true
+		case pkg == "k8s.io/client-go/dynamic":
+			// Dynamic client methods
+			return name == "Get" || name == "List" || name == "Create" || name == "Update" || name == "Patch" || name == "Delete"
+		default:
+			// Check for any k8s.io or sigs.k8s.io packages (more general)
+			if strings.HasPrefix(pkg, "k8s.io/") || strings.HasPrefix(pkg, "sigs.k8s.io/") {
 				return true
 			}
-			sel, ok := call.Fun.(*ast.SelectorExpr)
-			if !ok || sel.Sel == nil {
+			// Check for packages containing client-go, controller-runtime, or apimachinery
+			if strings.Contains(pkg, "client-go") || strings.Contains(pkg, "controller-runtime") || strings.Contains(pkg, "apimachinery") {
 				return true
 			}
-			name := sel.Sel.Name
-			if !(name == "Get" || name == "List" || name == "Create" || name == "Update" || name == "Patch" || name == "Delete") {
-				return true
-			}
-			if len(call.Args) == 0 {
-				return true
-			}
+		}
+		return false
+	}
+
+	nodes := []ast.Node{(*ast.CallExpr)(nil)}
+	insp.Nodes(nodes, func(n ast.Node, push bool) bool {
+		if !push {
+			return true
+		}
+
+		call := n.(*ast.CallExpr)
+		sel, ok := call.Fun.(*ast.SelectorExpr)
+		if !ok || sel.Sel == nil {
+			return true
+		}
+
+		if len(call.Args) == 0 {
+			return true
+		}
+
+		// Check if this is a Kubernetes client method using type information
+		if obj := pass.TypesInfo.Uses[sel.Sel]; isKubernetesClientMethod(obj) {
 			if isContextBackgroundOrTODO(call.Args[0]) {
 				pass.Reportf(sel.Sel.Pos(), "client call uses context.Background/TODO; propagate a request context instead")
 			}
-			return true
-		})
-	}
+		}
+
+		return true
+	})
+
 	return nil, nil
 }
 

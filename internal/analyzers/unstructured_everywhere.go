@@ -35,10 +35,6 @@ func runUnstructuredEverywhere(pass *analysis.Pass) (any, error) {
 					switch {
 					case pkg == "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured":
 						return true
-					case strings.HasPrefix(pkg, "k8s.io/apimachinery") && strings.Contains(pkg, "unstructured"):
-						return true
-					case strings.HasPrefix(pkg, "k8s.io/") && strings.Contains(pkg, "unstructured"):
-						return true
 					}
 				}
 			}

@@ -36,10 +36,6 @@ func runExcessiveClusterScope(pass *analysis.Pass) (any, error) {
 						return true
 					case pkg == "k8s.io/api/rbac/v1beta1":
 						return true
-					case strings.HasPrefix(pkg, "k8s.io/api/rbac"):
-						return true
-					case strings.HasPrefix(pkg, "k8s.io/") && strings.Contains(pkg, "rbac"):
-						return true
 					}
 				}
 			}
@@ -92,10 +88,6 @@ func runWildcardVerbs(pass *analysis.Pass) (any, error) {
 					case pkg == "k8s.io/api/rbac/v1":
 						return true
 					case pkg == "k8s.io/api/rbac/v1beta1":
-						return true
-					case strings.HasPrefix(pkg, "k8s.io/api/rbac"):
-						return true
-					case strings.HasPrefix(pkg, "k8s.io/") && strings.Contains(pkg, "rbac"):
 						return true
 					}
 				}

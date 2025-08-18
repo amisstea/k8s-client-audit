@@ -3,7 +3,6 @@ package analyzers
 import (
 	"go/ast"
 	"go/types"
-	"strings"
 
 	"golang.org/x/tools/go/analysis"
 	insppass "golang.org/x/tools/go/analysis/passes/inspect"
@@ -33,10 +32,6 @@ func runRequeueBackoff(pass *analysis.Pass) (any, error) {
 				if name == "Result" {
 					switch {
 					case pkg == "sigs.k8s.io/controller-runtime/pkg/reconcile":
-						return true
-					case strings.HasPrefix(pkg, "sigs.k8s.io/controller-runtime"):
-						return true
-					case strings.Contains(pkg, "controller-runtime"):
 						return true
 					}
 				}

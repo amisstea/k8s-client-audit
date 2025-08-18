@@ -42,15 +42,6 @@ func runMissingInformer(pass *analysis.Pass) (any, error) {
 			return true
 		case strings.HasPrefix(pkg, "sigs.k8s.io/controller-runtime/pkg/cache"):
 			return true
-		default:
-			// Check for any k8s.io or sigs.k8s.io packages
-			if strings.HasPrefix(pkg, "k8s.io/") || strings.HasPrefix(pkg, "sigs.k8s.io/") {
-				return true
-			}
-			// Check for packages containing client-go or controller-runtime
-			if strings.Contains(pkg, "client-go") || strings.Contains(pkg, "controller-runtime") {
-				return true
-			}
 		}
 		return false
 	}
@@ -72,15 +63,6 @@ func runMissingInformer(pass *analysis.Pass) (any, error) {
 			return true
 		case pkg == "k8s.io/client-go/dynamic":
 			return true
-		default:
-			// Check for any k8s.io or sigs.k8s.io packages
-			if strings.HasPrefix(pkg, "k8s.io/") || strings.HasPrefix(pkg, "sigs.k8s.io/") {
-				return true
-			}
-			// Check for packages containing client-go, controller-runtime, or apimachinery
-			if strings.Contains(pkg, "client-go") || strings.Contains(pkg, "controller-runtime") || strings.Contains(pkg, "apimachinery") {
-				return true
-			}
 		}
 		return false
 	}

@@ -4,7 +4,6 @@ import (
 	"go/ast"
 	"go/constant"
 	"go/types"
-	"strings"
 
 	"golang.org/x/tools/go/analysis"
 	insppass "golang.org/x/tools/go/analysis/passes/inspect"
@@ -41,15 +40,6 @@ func runLargePages(pass *analysis.Pass) (any, error) {
 			return true
 		case pkg == "k8s.io/client-go/dynamic":
 			return true
-		default:
-			// Check for any k8s.io or sigs.k8s.io packages
-			if strings.HasPrefix(pkg, "k8s.io/") || strings.HasPrefix(pkg, "sigs.k8s.io/") {
-				return true
-			}
-			// Check for packages containing client-go, controller-runtime, or apimachinery
-			if strings.Contains(pkg, "client-go") || strings.Contains(pkg, "controller-runtime") || strings.Contains(pkg, "apimachinery") {
-				return true
-			}
 		}
 		return false
 	}
@@ -67,10 +57,6 @@ func runLargePages(pass *analysis.Pass) (any, error) {
 					case pkg == "k8s.io/apimachinery/pkg/apis/meta/v1":
 						return true
 					case pkg == "sigs.k8s.io/controller-runtime/pkg/client":
-						return true
-					case strings.HasPrefix(pkg, "k8s.io/") && strings.Contains(pkg, "meta"):
-						return true
-					case strings.HasPrefix(pkg, "k8s.io/") && strings.Contains(pkg, "apimachinery"):
 						return true
 					}
 				}

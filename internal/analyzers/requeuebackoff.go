@@ -28,12 +28,8 @@ func runRequeueBackoff(pass *analysis.Pass) (any, error) {
 				pkg := named.Obj().Pkg().Path()
 				name := named.Obj().Name()
 
-				// Check for controller-runtime reconcile.Result
-				if name == "Result" {
-					switch {
-					case pkg == "sigs.k8s.io/controller-runtime/pkg/reconcile":
-						return true
-					}
+				if name == "Result" && pkg == "sigs.k8s.io/controller-runtime/pkg/reconcile" {
+					return true
 				}
 			}
 		}

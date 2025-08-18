@@ -2,7 +2,6 @@ package analyzers
 
 import (
 	"go/ast"
-	"go/types"
 
 	"golang.org/x/tools/go/analysis"
 	insppass "golang.org/x/tools/go/analysis/passes/inspect"
@@ -20,46 +19,6 @@ var AnalyzerWideNamespace = &analysis.Analyzer{
 func runWideNamespace(pass *analysis.Pass) (any, error) {
 	insp := pass.ResultOf[insppass.Analyzer].(*inspector.Inspector)
 
-	// Check if a method call is a Kubernetes InNamespace operation
-	isKubernetesInNamespace := func(obj types.Object) bool {
-		if obj == nil || obj.Pkg() == nil {
-			return false
-		}
-		name := obj.Name()
-		if name != "InNamespace" {
-			return false
-		}
-		pkg := obj.Pkg().Path()
-
-		// Check for Kubernetes-related packages
-		switch {
-		case pkg == "sigs.k8s.io/controller-runtime/pkg/client":
-			return true
-		}
-		return false
-	}
-
-	// Check if a method call is a Kubernetes List operation (for client-go pattern detection)
-	isKubernetesListCall := func(obj types.Object) bool {
-		if obj == nil || obj.Pkg() == nil {
-			return false
-		}
-		name := obj.Name()
-		if name != "List" {
-			return false
-		}
-		pkg := obj.Pkg().Path()
-
-		// Check for Kubernetes-related packages
-		switch {
-		case pkg == "sigs.k8s.io/controller-runtime/pkg/client":
-			return true
-		case pkg == "k8s.io/client-go/dynamic":
-			return true
-		}
-		return false
-	}
-
 	nodes := []ast.Node{(*ast.CallExpr)(nil)}
 	insp.Nodes(nodes, func(n ast.Node, push bool) bool {
 		if !push {
@@ -76,7 +35,7 @@ func runWideNamespace(pass *analysis.Pass) (any, error) {
 
 			// Check for InNamespace("") calls from Kubernetes packages
 			if fun.Sel.Name == "InNamespace" && len(ce.Args) == 1 {
-				if obj := pass.TypesInfo.Uses[fun.Sel]; isKubernetesInNamespace(obj) {
+				if obj := pass.TypesInfo.Uses[fun.Sel]; isKubernetesMethodCall(obj, "InNamespace") {
 					if isEmptyString(ce.Args[0]) {
 						pass.Reportf(fun.Sel.Pos(), "all-namespaces list; scope to a namespace if possible")
 					}
@@ -85,7 +44,7 @@ func runWideNamespace(pass *analysis.Pass) (any, error) {
 
 			// Check for client-go style List calls with empty namespace: client.Pods("").List()
 			if fun.Sel.Name == "List" {
-				if obj := pass.TypesInfo.Uses[fun.Sel]; isKubernetesListCall(obj) {
+				if obj := pass.TypesInfo.Uses[fun.Sel]; isKubernetesMethodCall(obj, "List") {
 					if hasEmptyStringNamespaceArg(fun.X) {
 						pass.Reportf(fun.Sel.Pos(), "all-namespaces list; scope to a namespace if possible")
 					}
@@ -95,7 +54,7 @@ func runWideNamespace(pass *analysis.Pass) (any, error) {
 		case *ast.Ident:
 			// Check for standalone InNamespace("") function calls
 			if fun.Name == "InNamespace" && len(ce.Args) == 1 {
-				if obj := pass.TypesInfo.Uses[fun]; isKubernetesInNamespace(obj) {
+				if obj := pass.TypesInfo.Uses[fun]; isKubernetesMethodCall(obj, "InNamespace") {
 					if isEmptyString(ce.Args[0]) {
 						pass.Reportf(fun.Pos(), "all-namespaces list; scope to a namespace if possible")
 					}

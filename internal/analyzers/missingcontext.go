@@ -2,7 +2,6 @@ package analyzers
 
 import (
 	"go/ast"
-	"go/types"
 
 	"golang.org/x/tools/go/analysis"
 	insppass "golang.org/x/tools/go/analysis/passes/inspect"
@@ -19,35 +18,6 @@ var AnalyzerMissingContext = &analysis.Analyzer{
 
 func runMissingContext(pass *analysis.Pass) (any, error) {
 	insp := pass.ResultOf[insppass.Analyzer].(*inspector.Inspector)
-
-	// Check if a method call is from a Kubernetes-related package
-	isKubernetesClientMethod := func(obj types.Object) bool {
-		if obj == nil || obj.Pkg() == nil {
-			return false
-		}
-		pkg := obj.Pkg().Path()
-		name := obj.Name()
-
-		// Only flag specific method names
-		if !(name == "Get" || name == "List" || name == "Create" || name == "Update" || name == "Patch" || name == "Delete") {
-			return false
-		}
-
-		// Check for Kubernetes-related packages
-		switch {
-		case pkg == "k8s.io/client-go/kubernetes/typed/apps/v1" ||
-			pkg == "k8s.io/client-go/kubernetes/typed/core/v1" ||
-			pkg == "k8s.io/client-go/kubernetes/typed/batch/v1" ||
-			pkg == "k8s.io/client-go/kubernetes/typed/networking/v1" ||
-			pkg == "k8s.io/client-go/kubernetes/typed/rbac/v1" ||
-			pkg == "sigs.k8s.io/controller-runtime/pkg/client":
-			return true
-		case pkg == "k8s.io/client-go/dynamic":
-			// Dynamic client methods
-			return name == "Get" || name == "List" || name == "Create" || name == "Update" || name == "Patch" || name == "Delete"
-		}
-		return false
-	}
 
 	nodes := []ast.Node{(*ast.CallExpr)(nil)}
 	insp.Nodes(nodes, func(n ast.Node, push bool) bool {
@@ -66,7 +36,7 @@ func runMissingContext(pass *analysis.Pass) (any, error) {
 		}
 
 		// Check if this is a Kubernetes client method using type information
-		if obj := pass.TypesInfo.Uses[sel.Sel]; isKubernetesClientMethod(obj) {
+		if obj := pass.TypesInfo.Uses[sel.Sel]; isKubernetesMethodCall(obj, "Get", "List", "Create", "Update", "Patch", "Delete", "Watch") {
 			if isContextBackgroundOrTODO(call.Args[0]) {
 				pass.Reportf(sel.Sel.Pos(), "client call uses context.Background/TODO; propagate a request context instead")
 			}

@@ -20,27 +20,6 @@ var AnalyzerTightErrorLoops = &analysis.Analyzer{
 func runTightErrorLoops(pass *analysis.Pass) (any, error) {
 	insp := pass.ResultOf[insppass.Analyzer].(*inspector.Inspector)
 
-	// Check if a method call is a Kubernetes API operation
-	isKubernetesAPICall := func(obj types.Object) bool {
-		if obj == nil || obj.Pkg() == nil {
-			return false
-		}
-		name := obj.Name()
-		if !(name == "Get" || name == "List" || name == "Create" || name == "Update" || name == "Patch" || name == "Delete" || name == "Watch") {
-			return false
-		}
-		pkg := obj.Pkg().Path()
-
-		// Check for Kubernetes-related packages
-		switch {
-		case pkg == "sigs.k8s.io/controller-runtime/pkg/client":
-			return true
-		case pkg == "k8s.io/client-go/dynamic":
-			return true
-		}
-		return false
-	}
-
 	// Check if a method call is a sleep operation
 	isSleepCall := func(obj types.Object) bool {
 		if obj == nil || obj.Pkg() == nil {
@@ -101,7 +80,7 @@ func runTightErrorLoops(pass *analysis.Pass) (any, error) {
 
 			// Use type information to determine what kind of call this is
 			if obj := pass.TypesInfo.Uses[sel.Sel]; obj != nil {
-				if isKubernetesAPICall(obj) {
+				if isKubernetesMethodCall(obj, "Get", "List", "Create", "Update", "Patch", "Delete", "Watch") {
 					hasKubeAPICall = true
 				} else if isSleepCall(obj) {
 					hasSleep = true

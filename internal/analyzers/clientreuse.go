@@ -2,7 +2,6 @@ package analyzers
 
 import (
 	"go/ast"
-	"go/types"
 
 	"golang.org/x/tools/go/analysis"
 	insppass "golang.org/x/tools/go/analysis/passes/inspect"
@@ -23,35 +22,15 @@ func runClientReuse(pass *analysis.Pass) (any, error) {
 	// Determine if a call expression constructs a K8s client by checking the
 	// fully-qualified package path and function name via type information.
 	isCtor := func(call *ast.CallExpr) bool {
-		// Helper to check a function object
-		isKnownCtor := func(obj types.Object) bool {
-			if obj == nil || obj.Pkg() == nil {
-				return false
-			}
-			pkg := obj.Pkg().Path()
-			name := obj.Name()
-			switch pkg {
-			case "k8s.io/client-go/kubernetes":
-				return name == "NewForConfig" || name == "NewForConfigOrDie"
-			case "k8s.io/client-go/dynamic":
-				return name == "NewForConfig"
-			case "k8s.io/client-go/rest":
-				return name == "RESTClientFor"
-			case "sigs.k8s.io/controller-runtime/pkg/client":
-				return name == "New"
-			default:
-				return false
-			}
-		}
 		switch fun := call.Fun.(type) {
 		case *ast.SelectorExpr:
 			if fun.Sel != nil {
-				if obj := pass.TypesInfo.Uses[fun.Sel]; isKnownCtor(obj) {
+				if obj := pass.TypesInfo.Uses[fun.Sel]; isKubernetesClientConstructor(obj) {
 					return true
 				}
 			}
 		case *ast.Ident:
-			if obj := pass.TypesInfo.Uses[fun]; isKnownCtor(obj) {
+			if obj := pass.TypesInfo.Uses[fun]; isKubernetesClientConstructor(obj) {
 				return true
 			}
 		}

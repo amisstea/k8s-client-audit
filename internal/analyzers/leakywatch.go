@@ -21,27 +21,6 @@ var AnalyzerLeakyWatch = &analysis.Analyzer{
 func runLeakyWatch(pass *analysis.Pass) (any, error) {
 	insp := pass.ResultOf[insppass.Analyzer].(*inspector.Inspector)
 
-	// Check if a method call is a Kubernetes ResultChan call
-	isKubernetesResultChan := func(obj types.Object) bool {
-		if obj == nil || obj.Pkg() == nil {
-			return false
-		}
-		name := obj.Name()
-		if name != "ResultChan" {
-			return false
-		}
-		pkg := obj.Pkg().Path()
-
-		// Check for Kubernetes-related packages
-		switch {
-		case pkg == "sigs.k8s.io/controller-runtime/pkg/client":
-			return true
-		case pkg == "k8s.io/client-go/dynamic":
-			return true
-		}
-		return false
-	}
-
 	// Check if a method call is a stop/cancel operation
 	isStopCall := func(obj types.Object) bool {
 		if obj == nil {
@@ -88,7 +67,7 @@ func runLeakyWatch(pass *analysis.Pass) (any, error) {
 
 			// Use type information to determine what kind of call this is
 			if obj := pass.TypesInfo.Uses[sel.Sel]; obj != nil {
-				if isKubernetesResultChan(obj) {
+				if isKubernetesMethodCall(obj, "ResultChan") {
 					resultChanCalls = append(resultChanCalls, x)
 				} else if isStopCall(obj) {
 					stopCalls = append(stopCalls, x)

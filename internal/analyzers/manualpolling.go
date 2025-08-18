@@ -21,27 +21,6 @@ var AnalyzerManualPolling = &analysis.Analyzer{
 func runManualPolling(pass *analysis.Pass) (any, error) {
 	insp := pass.ResultOf[insppass.Analyzer].(*inspector.Inspector)
 
-	// Check if a method call is a Kubernetes List operation
-	isKubernetesListCall := func(obj types.Object) bool {
-		if obj == nil || obj.Pkg() == nil {
-			return false
-		}
-		name := obj.Name()
-		if name != "List" {
-			return false
-		}
-		pkg := obj.Pkg().Path()
-
-		// Check for Kubernetes-related packages
-		switch {
-		case pkg == "sigs.k8s.io/controller-runtime/pkg/client":
-			return true
-		case pkg == "k8s.io/client-go/dynamic":
-			return true
-		}
-		return false
-	}
-
 	// Check if a method call is a sleep operation
 	isSleepCall := func(obj types.Object) bool {
 		if obj == nil || obj.Pkg() == nil {
@@ -95,7 +74,7 @@ func runManualPolling(pass *analysis.Pass) (any, error) {
 
 			// Use type information to determine what kind of call this is
 			if obj := pass.TypesInfo.Uses[sel.Sel]; obj != nil {
-				if isKubernetesListCall(obj) {
+				if isKubernetesMethodCall(obj, "List") {
 					foundKubernetesLists = append(foundKubernetesLists, x)
 				} else if isSleepCall(obj) {
 					foundSleeps = append(foundSleeps, x)

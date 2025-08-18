@@ -3,7 +3,6 @@ package analyzers
 import (
 	"go/ast"
 	"go/constant"
-	"go/types"
 
 	"golang.org/x/tools/go/analysis"
 	insppass "golang.org/x/tools/go/analysis/passes/inspect"
@@ -23,48 +22,6 @@ const defaultLargePageThreshold = 1000
 func runLargePages(pass *analysis.Pass) (any, error) {
 	insp := pass.ResultOf[insppass.Analyzer].(*inspector.Inspector)
 
-	// Check if a method call is a Kubernetes List operation
-	isKubernetesListCall := func(obj types.Object) bool {
-		if obj == nil || obj.Pkg() == nil {
-			return false
-		}
-		name := obj.Name()
-		if name != "List" {
-			return false
-		}
-		pkg := obj.Pkg().Path()
-
-		// Check for Kubernetes-related packages
-		switch {
-		case pkg == "sigs.k8s.io/controller-runtime/pkg/client":
-			return true
-		case pkg == "k8s.io/client-go/dynamic":
-			return true
-		}
-		return false
-	}
-
-	// Check if a type is a Kubernetes ListOptions
-	isKubernetesListOptions := func(t types.Type) bool {
-		if named, ok := t.(*types.Named); ok {
-			if named.Obj() != nil && named.Obj().Pkg() != nil {
-				pkg := named.Obj().Pkg().Path()
-				name := named.Obj().Name()
-
-				// Check for Kubernetes ListOptions types
-				if name == "ListOptions" {
-					switch {
-					case pkg == "k8s.io/apimachinery/pkg/apis/meta/v1":
-						return true
-					case pkg == "sigs.k8s.io/controller-runtime/pkg/client":
-						return true
-					}
-				}
-			}
-		}
-		return false
-	}
-
 	nodes := []ast.Node{(*ast.CallExpr)(nil)}
 	insp.Nodes(nodes, func(n ast.Node, push bool) bool {
 		if !push {
@@ -80,7 +37,7 @@ func runLargePages(pass *analysis.Pass) (any, error) {
 		}
 
 		// Use type information to verify this is a Kubernetes List call
-		if obj := pass.TypesInfo.Uses[sel.Sel]; obj != nil && isKubernetesListCall(obj) {
+		if obj := pass.TypesInfo.Uses[sel.Sel]; obj != nil && isKubernetesMethodCall(obj, "List") {
 			// Look for ListOptions in the arguments
 			for _, arg := range ce.Args {
 				cl, ok := arg.(*ast.CompositeLit)

@@ -3,7 +3,6 @@ package analyzers
 import (
 	"go/ast"
 	"go/types"
-	"strings"
 
 	"golang.org/x/tools/go/analysis"
 	insppass "golang.org/x/tools/go/analysis/passes/inspect"
@@ -42,26 +41,6 @@ func runUnstructuredEverywhere(pass *analysis.Pass) (any, error) {
 		return false
 	}
 
-	// Check if a function call creates/uses Kubernetes Unstructured objects
-	isKubernetesUnstructuredCall := func(obj types.Object) bool {
-		if obj == nil || obj.Pkg() == nil {
-			return false
-		}
-		name := obj.Name()
-		pkg := obj.Pkg().Path()
-
-		// Check for Unstructured-related function calls
-		if name == "Unstructured" || strings.Contains(name, "Unstructured") {
-			switch {
-			case strings.HasPrefix(pkg, "k8s.io/apimachinery") && strings.Contains(pkg, "unstructured"):
-				return true
-			case strings.HasPrefix(pkg, "k8s.io/") && strings.Contains(pkg, "unstructured"):
-				return true
-			}
-		}
-		return false
-	}
-
 	count := 0
 	insp.Preorder([]ast.Node{(*ast.CompositeLit)(nil), (*ast.CallExpr)(nil)}, func(n ast.Node) {
 		switch x := n.(type) {
@@ -73,11 +52,11 @@ func runUnstructuredEverywhere(pass *analysis.Pass) (any, error) {
 		case *ast.CallExpr:
 			// Check if this is a call to Kubernetes Unstructured constructors/methods
 			if se, ok := x.Fun.(*ast.SelectorExpr); ok && se.Sel != nil {
-				if obj := pass.TypesInfo.Uses[se.Sel]; obj != nil && isKubernetesUnstructuredCall(obj) {
+				if obj := pass.TypesInfo.Uses[se.Sel]; obj != nil && isKubernetesMethodCall(obj, "Object") {
 					count++
 				}
 			} else if id, ok := x.Fun.(*ast.Ident); ok {
-				if obj := pass.TypesInfo.Uses[id]; obj != nil && isKubernetesUnstructuredCall(obj) {
+				if obj := pass.TypesInfo.Uses[id]; obj != nil && isKubernetesMethodCall(obj, "Object") {
 					count++
 				}
 			}

@@ -1,0 +1,128 @@
+---
+description: Generate a report with analysis for issues reported by the k8s-client-audit tool.
+alwaysApply: false
+---
+
+When this rule is invoked it means the user wants a report generated with detailed analysis of issues reported
+by the `k8s-client-audit` tool.
+If the user does not provide the output of the tool then it is permitted to invoke a wrapper script for them. 
+The script will analyze all the git repositories within the user provided directory (use `sources` if not provided).
+The script can be invoked like so:
+
+```
+./scripts/lint-github-org.sh [DIRECTORY]
+```
+
+The output contains potential issues across all repositories. Each issue is a dedicated line that
+starts with the absolute path to the source file, line, and column in question.
+Only consider these lines to be issues and make sure to accurately parse and count them.
+Here's one example of a reported issue:
+
+```
+/home/user/src/k8s-client-audit/sources/image-controller/internal/controller/users_config_map_controller.go:248:21: List without label/field selectors; add MatchingLabels/Fields or set ListOptions selectors
+```
+
+Use the following regex to identify the issues.
+Count the occurrences and ensure all issues are accounted for in the final report.
+Ignore lines which do not match this pattern.
+
+```
+^/.+\.go:\d+:\d+:.*$
+```
+
+For each issue reported by the tool/script, analyze it to see if they are truly anti-patterns,
+misconfiguration of a kubernetes client, or a bad practice when interacting with the kubernetes
+API server.
+Make no assumptions. Inspect the offending code thoroughly. Verify all theories with reliable evidence.
+Ensure all statistics gathered are accurate.
+
+Consider cluster scoped client operations to be a high priority.
+Consider namespace scoped client operations to be medium priority.
+
+Generate a markdown report with this analysis using the following template.
+Name the report `report.md` unless instructed to do otherwise.
+Replace sections within square brackets.
+Where permalinks are required make sure they include commit hashes in the URL.
+Refer to the git metadata for each repository to retrieve the remote git repository URL.
+
+```
+# Kubernetes Client Audit - Diagnostic Analysis
+
+This document contains analysis of potential anti-patterns, misconfiguration, or bad practices
+when interacting with the kubernetes API server. It may include analysis from multiple git repositories.
+
+## Summary
+- **Total Issues Found**: [COUNT]
+- **Real Issues**: [COUNT]
+- **False Positives/Acceptable**: [COUNT]
+- **Context-Dependent**: [COUNT]
+
+## Issue Type Breakdown
+1. **[ANALYZER_NAME]**: [COUNT]
+2. **[ANALYZER_NAME]**: [COUNT]
+...
+
+## Issue Categories
+
+[INSERT DESCRIPTIONS OF EACH ANALYZER REPORTING AN ISSUE]
+
+---
+
+## Detailed Analysis
+
+[INSERT SOME THOUGHTFUL ANALYSIS]
+
+---
+
+## Final Summary
+
+### Overall Assessment
+
+**Total Issues Analyzed**: [COUNT]
+
+**Distribution by Severity**:
+- **High Priority (Real Issues)**: [COUNT]
+
+- **Medium Priority (Context Dependent)**: [COUNT]
+
+- **Low Priority (False Positives/Acceptable)**: [COUNT]
+
+### Recommendations by Priority
+
+**Attention Required (High Priority)**:
+[LIST ACTIONS]
+
+**Review and Consider (Medium Priority)**:
+[LIST ACTIONS]
+
+**No Action Needed (Acceptable Patterns)**:
+[LIST ACTIONS]
+
+---
+## Complete Issue Inventory
+
+Below is every single issue reported by the kubernetes client audit tool, categorized by priority
+level and type. Each issue includes its GitHub permalink for easy reference.
+
+### 🚨 HIGH PRIORITY - Issues Requiring Attention
+
+#### [CATEGORY]
+1. **[REPOSITORY]** - [FILENAME]:[LINE_NUMBER]]([PERMALINK]) - [SUMMARY]
+2. **[REPOSITORY]** - [FILENAME]:[LINE_NUMBER]]([PERMALINK]) - [SUMMARY]
+...
+
+### ⚠️ MEDIUM PRIORITY - Context Dependent Issues
+
+#### [CATEGORY]
+1. **[REPOSITORY]** - [FILENAME]:[LINE_NUMBER]]([PERMALINK]) - [SUMMARY]
+2. **[REPOSITORY]** - [FILENAME]:[LINE_NUMBER]]([PERMALINK]) - [SUMMARY]
+...
+
+### ✅ LOW PRIORITY - Acceptable Patterns (False Positives)
+
+#### [CATEGORY]
+1. **[REPOSITORY]** - [FILENAME]:[LINE_NUMBER]]([PERMALINK]) - [SUMMARY]
+2. **[REPOSITORY]** - [FILENAME]:[LINE_NUMBER]]([PERMALINK]) - [SUMMARY]
+...
+
+When finished, remove any other files generated in the process.

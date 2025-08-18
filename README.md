@@ -107,3 +107,8 @@ Notes for the wrapper:
 
 All commands support `-h`/`--help` to display usage and flags. The linter accepts standard `multichecker` flags (e.g., `-json`, `-vettool` style integration) in addition to its positional package patterns like `./...`.
 
+## Cursor Rules
+
+The `analyze` cursor rule is a useful tool for parsing the results of a scan and analyzing them further.
+It will even run the wrapper script for you if desired.
+This rule generates a markdown report summarizing all its findings.

@@ -13,16 +13,11 @@ if [ ! -d "$ROOT_DIR" ]; then
   exit 1
 fi
 
-echo "🔍 Scanning for Go modules under: $ROOT_DIR"
-
 modules=$(find "$ROOT_DIR" -type f -name go.mod -not -path "*/vendor/*")
 
 while IFS= read -r gomod; do
   moddir=$(dirname "$gomod")
-  echo "🧩 Analyzing module: $moddir"
   pushd "$moddir" >/dev/null
   k8s-client-audit -test=false ./...
   popd >/dev/null
 done <<< $modules
-
-echo "✅ Done."

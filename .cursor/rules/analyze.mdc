@@ -37,7 +37,7 @@ Make no assumptions. Inspect the offending code thoroughly. Verify all theories 
 Ensure all statistics gathered are accurate.
 
 Consider cluster scoped client operations to be a high priority.
-Consider namespace scoped client operations to be medium priority.
+Consider namespace scoped client operations to be medium priority at most.
 
 Generate a markdown report with this analysis using the following template.
 Name the report `report.md` unless instructed to do otherwise.
@@ -51,11 +51,9 @@ Refer to the git metadata for each repository to retrieve the remote git reposit
 This document contains analysis of potential anti-patterns, misconfiguration, or bad practices
 when interacting with the kubernetes API server. It may include analysis from multiple git repositories.
 
-## Summary
-- **Total Issues Found**: [COUNT]
-- **Real Issues**: [COUNT]
-- **False Positives/Acceptable**: [COUNT]
-- **Context-Dependent**: [COUNT]
+**Total Issues Found**: [COUNT]
+
+**High Priority Issues Found**: [COUNT]
 
 ## Issue Type Breakdown
 1. **[ANALYZER_NAME]**: [COUNT]
@@ -78,25 +76,18 @@ when interacting with the kubernetes API server. It may include analysis from mu
 
 ### Overall Assessment
 
-**Total Issues Analyzed**: [COUNT]
-
 **Distribution by Severity**:
-- **High Priority (Real Issues)**: [COUNT]
+- **High Priority (Real issues with high impact)**: [COUNT]
 
-- **Medium Priority (Context Dependent)**: [COUNT]
+- **Medium Priority (Real issues with low impact)**: [COUNT]
 
-- **Low Priority (False Positives/Acceptable)**: [COUNT]
+- **Low Priority (Possible issues but low/medium impact)**: [COUNT]
 
-### Recommendations by Priority
+- **No Priority (False positives)**: [COUNT]
 
-**Attention Required (High Priority)**:
-[LIST ACTIONS]
+### Recommendations by Project
 
-**Review and Consider (Medium Priority)**:
-[LIST ACTIONS]
-
-**No Action Needed (Acceptable Patterns)**:
-[LIST ACTIONS]
+[INSERT RECOMMENDATIONS FOR EACH PROJECT TO FIX OR VALIDATE THEIR HIGH OR MEDIUM PRIORITY ISSUES]
 
 ---
 ## Complete Issue Inventory
@@ -104,21 +95,28 @@ when interacting with the kubernetes API server. It may include analysis from mu
 Below is every single issue reported by the kubernetes client audit tool, categorized by priority
 level and type. Each issue includes its GitHub permalink for easy reference.
 
-### 🚨 HIGH PRIORITY - Issues Requiring Attention
+### 🚨 HIGH PRIORITY
 
 #### [CATEGORY]
 1. **[REPOSITORY]** - [FILENAME]:[LINE_NUMBER]]([PERMALINK]) - [SUMMARY]
 2. **[REPOSITORY]** - [FILENAME]:[LINE_NUMBER]]([PERMALINK]) - [SUMMARY]
 ...
 
-### ⚠️ MEDIUM PRIORITY - Context Dependent Issues
+### ⚠️ MEDIUM PRIORITY
 
 #### [CATEGORY]
 1. **[REPOSITORY]** - [FILENAME]:[LINE_NUMBER]]([PERMALINK]) - [SUMMARY]
 2. **[REPOSITORY]** - [FILENAME]:[LINE_NUMBER]]([PERMALINK]) - [SUMMARY]
 ...
 
-### ✅ LOW PRIORITY - Acceptable Patterns (False Positives)
+### 💤 LOW PRIORITY
+
+#### [CATEGORY]
+1. **[REPOSITORY]** - [FILENAME]:[LINE_NUMBER]]([PERMALINK]) - [SUMMARY]
+2. **[REPOSITORY]** - [FILENAME]:[LINE_NUMBER]]([PERMALINK]) - [SUMMARY]
+...
+
+### 🟦 NO PRIORITY
 
 #### [CATEGORY]
 1. **[REPOSITORY]** - [FILENAME]:[LINE_NUMBER]]([PERMALINK]) - [SUMMARY]
